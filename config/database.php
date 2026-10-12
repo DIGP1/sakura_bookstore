@@ -114,7 +114,7 @@ return [
         'neo4j' => [
             'driver'   => 'neo4j',
             'protocol' => env('NEO4J_PROTOCOL', 'bolt'),
-            'host'     => env('NEO4J_HOST', '127.0.0.1'),
+            'host'     => env('NEO4J_HOST', '147.224.168.110'),
             'port'     => env('NEO4J_PORT', '7687'),
             'database' => env('NEO4J_DATABASE', 'neo4j'),
             'username' => env('NEO4J_USERNAME', 'neo4j'),
