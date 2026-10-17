@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+
 use Illuminate\Support\ServiceProvider;
 use Laudis\Neo4j\ClientBuilder;
+use App\Services\OfertaService;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -22,6 +24,9 @@ class AppServiceProvider extends ServiceProvider
                 ->withDriver('default', "bolt://{$user}:{$pass}@{$host}:{$port}")
                 ->build();
         });
+        
+          // Una sola instancia por petición: las ofertas se consultan una vez por página.
+          $this->app->scoped(OfertaService::class);
     }
 
     /**
