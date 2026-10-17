@@ -10,16 +10,16 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::table('tbclientes', function (Blueprint $table): void {
-        $table->foreignId('id_user')->nullable()->unique()->constrained('users')->nullOnDelete();
-    });
-}
+    {
+        Schema::table('tbclientes', function (Blueprint $table): void {
+            $table->foreignId('id_user')->nullable()->unique()->constrained('users')->nullOnDelete();
+        });
+    }
 
-public function down(): void
-{
-    Schema::table('tbclientes', function (Blueprint $table): void {
-        $table->dropConstrainedForeignId('id_user');
-    });
-}
+    public function down(): void
+    {
+        Schema::table('tbclientes', function (Blueprint $table): void {
+            $table->dropConstrainedForeignId('id_user');
+        });
+    }
 };
