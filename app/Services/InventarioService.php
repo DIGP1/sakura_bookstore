@@ -48,8 +48,8 @@ class InventarioService
             }
 
             $sale = new Venta($saleData);
-            $sale->subtotal_general = round($subtotal + $discount, 2);
-            $sale->descuento_global = round($discount, 2);
+            $sale->subtotal_general = round($subtotal, 2);
+            $sale->descuento_global = 0;
             $sale->total = round($subtotal, 2);
             $sale->save();
 
@@ -60,7 +60,7 @@ class InventarioService
                 $unitDiscount = (float) ($detailData['descuento_aplicado'] ?? 0);
                 $detail = $sale->detalles()->create([
                     'id_producto' => $product->getKey(),
-                    'id_oferta' => $detailData['id_oferta'] ?? $sale->id_oferta,
+                    'id_oferta' => $detailData['id_oferta'] ?? null,
                     'cantidad' => $quantity,
                     'precio_unitario' => $unitPrice,
                     'descuento_aplicado' => $unitDiscount,
@@ -94,7 +94,7 @@ class InventarioService
                 $this->recordMovement($product->fresh(), (int) $detail->cantidad, (float) $product->costo_promedio, [
                     'id_detalle_venta' => $detail->getKey(),
                     'observacion' => 'Reingreso por anulación de venta',
-                ], ['ENTRADA_ANULACION', 'ENTRADA', 'ANULACION']);
+                ], ['ANULACION_VENTA', 'ENTRADA_ANULACION', 'ENTRADA', 'ANULACION']);
             }
 
             $sale->id_estado_ventas = $cancelledStatus;
