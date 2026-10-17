@@ -19,9 +19,11 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
+
         $middleware->alias([
             'role' => EnsureUserHasRole::class,
         ]);
+
         $middleware->redirectUsersTo(
             fn (Request $request) => $request->user()?->rutaInicio() ?? '/'
         );
