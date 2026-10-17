@@ -2,10 +2,21 @@
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Http\Controllers\UbicacionController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome');
 })->name('home');
+
+Route::get('/', function () {
+    return Inertia::render('Welcome');
+})->name('home');
+
+Route::get('ubicaciones/departamentos/{departamento}/municipios', [UbicacionController::class, 'municipios'])
+    ->name('ubicaciones.municipios');
+
+Route::get('ubicaciones/municipios/{municipio}/distritos', [UbicacionController::class, 'distritos'])
+    ->name('ubicaciones.distritos');
 
 Route::get('dashboard', function () {
     return Inertia::render('Dashboard');
