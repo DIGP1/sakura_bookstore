@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
 class Devolucion extends LibreriaModel
 {
     protected $table = 'tbdevoluciones';
@@ -11,5 +13,10 @@ class Devolucion extends LibreriaModel
     protected function casts(): array
     {
         return ['fecha_devolucion' => 'datetime'];
+    }
+
+    public function detalles(): HasMany
+    {
+        return $this->hasMany(DetalleDevolucion::class, 'id_devolucion', 'id_devolucion');
     }
 }
