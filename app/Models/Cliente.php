@@ -25,4 +25,9 @@ class Cliente extends LibreriaModel
     {
         return $this->hasMany(Venta::class, 'id_cliente', 'id_cliente');
     }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'id_user', 'id');
+    }
 }
