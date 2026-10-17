@@ -13,6 +13,9 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
+    public const ROL_ADMIN = 'admin';
+    public const ROL_CLIENTE = 'cliente';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -49,5 +52,14 @@ class User extends Authenticatable
     public function cliente(): HasOne
     {
         return $this->hasOne(Cliente::class, 'id_user', 'id');
+    }
+    public function esAdmin(): bool
+    {
+        return $this->rol === self::ROL_ADMIN;
+    }
+
+    public function esCliente(): bool
+    {
+        return $this->rol === self::ROL_CLIENTE;
     }
 }
