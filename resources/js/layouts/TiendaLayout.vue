@@ -61,6 +61,9 @@ function buscar() {
 
                     <template v-if="usuario">
                         <span class="hidden text-muted-foreground lg:inline">Hola, {{ usuario.name }}</span>
+                        <Link v-if="usuario.rol === 'cliente'" :href="route('cliente.pedidos')" class="text-muted-foreground hover:text-foreground">
+                            Mis pedidos
+                        </Link>
                         <Button v-if="usuario.rol === 'admin'" as-child variant="outline" size="sm">
                             <Link :href="route('dashboard')">Panel</Link>
                         </Button>

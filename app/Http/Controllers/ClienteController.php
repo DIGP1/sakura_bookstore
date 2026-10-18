@@ -122,9 +122,33 @@ class ClienteController extends Controller
         ]);
     }
 
-    public function orders(): Response
+        /**
+     * Mis pedidos: compras del cliente con el estado de la venta y del envío.
+     */
+    public function orders(Request $request): Response
     {
-        return Inertia::render('cliente/Pedidos');
+        $idCliente = $request->user()->cliente?->id_cliente ?? 0;
+
+        $pedidos = Venta::query()
+            ->where('id_cliente', $idCliente)
+            ->with(['estado', 'envio.estado'])
+            ->withSum('detalles', 'cantidad')
+            ->orderByDesc('fecha')
+            ->paginate(10)
+            ->through(fn (Venta $venta) => [
+                'id_venta' => $venta->id_venta,
+                'numero' => str_pad((string) $venta->id_venta, 6, '0', STR_PAD_LEFT),
+                'fecha' => $venta->fecha?->format('d/m/Y'),
+                'libros' => (int) $venta->detalles_sum_cantidad,
+                'total' => round((float) $venta->total + (float) ($venta->envio?->costo_envio ?? 0), 2),
+                'estado' => $venta->estado?->nombre,
+                'entrega' => $venta->envio ? 'domicilio' : 'tienda',
+                'estado_envio' => $venta->envio?->estado?->nombre,
+            ]);
+
+        return Inertia::render('cliente/Pedidos', [
+            'pedidos' => $pedidos,
+        ]);
     }
 
     public function returns(): Response
