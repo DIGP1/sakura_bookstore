@@ -25,7 +25,10 @@ defineProps<{ pedidos: Paginado<Pedido> }>();
     <Head title="Mis pedidos" />
 
     <TiendaLayout>
-        <h1 class="mb-6 text-2xl font-semibold">Mis pedidos</h1>
+        <div class="mb-6 flex flex-wrap items-baseline justify-between gap-2">
+            <h1 class="text-2xl font-semibold">Mis pedidos</h1>
+            <Link :href="route('cliente.devoluciones')" class="text-sm text-muted-foreground hover:underline">Ver mis devoluciones</Link>
+        </div>
 
         <div v-if="!pedidos.data.length" class="rounded-lg border p-10 text-center">
             <p class="text-muted-foreground">Todavía no has hecho ninguna compra.</p>

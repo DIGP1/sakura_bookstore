@@ -11,6 +11,9 @@ const estilos: Record<string, { texto: string; clase: string }> = {
     ENTREGADO: { texto: 'Entregado', clase: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300' },
     FALLIDO: { texto: 'Fallido', clase: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300' },
     DEVUELTO: { texto: 'Devuelto', clase: 'bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-300' },
+    SOLICITADA: { texto: 'En revisión', clase: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' },
+    APROBADA: { texto: 'Aprobada', clase: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300' },
+    RECHAZADA: { texto: 'Rechazada', clase: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300' },
 };
 
 const info = computed(

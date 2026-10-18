@@ -14,6 +14,7 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Gate;
 use App\Http\Requests\SolicitarDevolucionRequest;
 use App\Models\MotivoDevolucion;
+use App\Models\Devolucion;
 use App\Models\TipoReembolso;
 use App\Services\DevolucionService;
 use Inertia\Inertia;
@@ -267,8 +268,36 @@ class ClienteController extends Controller
     }
 
 
-    public function returns(): Response
+        /**
+     * Mis devoluciones: solicitudes del cliente con su estado y el monto a reembolsar.
+     */
+    public function returns(Request $request): Response
     {
-        return Inertia::render('cliente/Devoluciones');
+        $idCliente = $request->user()->cliente?->id_cliente ?? 0;
+        $formato = fn (?string $nombre) => $nombre ? ucfirst(mb_strtolower(str_replace('_', ' ', $nombre))) : null;
+
+        $devoluciones = Devolucion::query()
+            ->whereHas('venta', fn ($venta) => $venta->where('id_cliente', $idCliente))
+            ->with(['estado', 'motivo', 'tipoReembolso', 'detalles.detalleVenta.producto'])
+            ->orderByDesc('fecha_devolucion')
+            ->paginate(10)
+            ->through(fn (Devolucion $devolucion) => [
+                'id_devolucion' => $devolucion->id_devolucion,
+                'id_venta' => $devolucion->id_venta,
+                'numero_pedido' => str_pad((string) $devolucion->id_venta, 6, '0', STR_PAD_LEFT),
+                'fecha' => $devolucion->fecha_devolucion?->format('d/m/Y'),
+                'estado' => $devolucion->estado?->nombre,
+                'motivo' => $formato($devolucion->motivo?->nombre),
+                'tipo_reembolso' => $formato($devolucion->tipoReembolso?->nombre),
+                'libros' => $devolucion->detalles->map(fn ($detalle) => [
+                    'nombre' => $detalle->detalleVenta?->producto?->nombre,
+                    'cantidad' => (int) $detalle->cantidad,
+                ]),
+                'reembolso' => round($devolucion->detalles->sum(fn ($detalle) => (float) $detalle->monto_reembolso), 2),
+            ]);
+
+        return Inertia::render('cliente/Devoluciones', [
+            'devoluciones' => $devoluciones,
+        ]);
     }
 }
