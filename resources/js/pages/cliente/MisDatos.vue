@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import TiendaLayout from '@/layouts/TiendaLayout.vue';
 import { claseSelect } from '@/lib/tienda';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import { LoaderCircle } from 'lucide-vue-next';
 import { onMounted, ref } from 'vue';
 
@@ -75,6 +75,21 @@ function cambiarMunicipio() {
 function guardar() {
     form.patch(route('cliente.datos.update'), { preserveScroll: true });
 }
+
+// Cambio de contraseña: usa la ruta que ya trae Laravel (password.update).
+const formClave = useForm({
+    current_password: '',
+    password: '',
+    password_confirmation: '',
+});
+
+function cambiarClave() {
+    formClave.put(route('password.update'), {
+        preserveScroll: true,
+        onSuccess: () => formClave.reset(),
+        onError: () => formClave.reset('password', 'password_confirmation'),
+    });
+}
 </script>
 
 <template>
@@ -83,10 +98,7 @@ function guardar() {
     <TiendaLayout>
         <div class="mx-auto max-w-2xl">
             <h1 class="text-2xl font-semibold">Mis datos</h1>
-            <p class="mb-6 text-sm text-muted-foreground">
-                Estos datos se usan para llenar tus envíos. El correo y la contraseña se cambian en
-                <Link :href="route('profile.edit')" class="underline">ajustes de la cuenta</Link>.
-            </p>
+            <p class="mb-6 text-sm text-muted-foreground">Estos datos se usan para llenar tus envíos.</p>
 
             <form class="flex flex-col gap-4 rounded-lg border p-4" @submit.prevent="guardar">
                 <div class="grid gap-2">
@@ -146,6 +158,38 @@ function guardar() {
                         Guardar cambios
                     </Button>
                     <span v-if="form.recentlySuccessful" class="text-sm text-muted-foreground">Guardado.</span>
+                </div>
+            </form>
+
+            <h2 class="mb-1 mt-10 text-xl font-semibold">Cambiar contraseña</h2>
+            <p class="mb-4 text-sm text-muted-foreground">Usá una contraseña larga que no uses en otros sitios.</p>
+
+            <form class="flex flex-col gap-4 rounded-lg border p-4" @submit.prevent="cambiarClave">
+                <div class="grid gap-2">
+                    <Label for="current_password">Contraseña actual</Label>
+                    <Input id="current_password" v-model="formClave.current_password" type="password" autocomplete="current-password" />
+                    <InputError :message="formClave.errors.current_password" />
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="grid gap-2">
+                        <Label for="password">Contraseña nueva</Label>
+                        <Input id="password" v-model="formClave.password" type="password" autocomplete="new-password" />
+                        <InputError :message="formClave.errors.password" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="password_confirmation">Repetí la contraseña nueva</Label>
+                        <Input id="password_confirmation" v-model="formClave.password_confirmation" type="password" autocomplete="new-password" />
+                        <InputError :message="formClave.errors.password_confirmation" />
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <Button type="submit" :disabled="formClave.processing">
+                        <LoaderCircle v-if="formClave.processing" class="h-4 w-4 animate-spin" />
+                        Cambiar contraseña
+                    </Button>
+                    <span v-if="formClave.recentlySuccessful" class="text-sm text-muted-foreground">Contraseña cambiada.</span>
                 </div>
             </form>
         </div>

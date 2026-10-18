@@ -42,6 +42,8 @@ Route::middleware(['auth', 'role:cliente'])->group(function (): void {
     Route::get('mis-pedidos/{venta}/devolucion', [ClienteController::class, 'createReturn'])->name('cliente.devoluciones.create');
     Route::post('mis-pedidos/{venta}/devolucion', [ClienteController::class, 'storeReturn'])->name('cliente.devoluciones.store');
     Route::get('devoluciones', [ClienteController::class, 'returns'])->name('cliente.devoluciones');
+    Route::get('mis-datos', [ClienteController::class, 'editProfile'])->name('cliente.datos');
+    Route::patch('mis-datos', [ClienteController::class, 'updateProfile'])->name('cliente.datos.update');
 });
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->group(function (): void {
