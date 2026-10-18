@@ -6,9 +6,9 @@ use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\CompraController;
 use App\Http\Controllers\DevolucionController;
+use App\Http\Controllers\InicioController;
 use App\Http\Controllers\UbicacionController;
 use App\Http\Controllers\VentaController;
-use App\Http\Controllers\InicioController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -35,6 +35,8 @@ Route::prefix('carrito')->name('carrito.')->group(function (): void {
 
 Route::middleware(['auth', 'role:cliente'])->group(function (): void {
     Route::get('checkout', [ClienteController::class, 'checkout'])->name('checkout');
+    Route::post('checkout', [ClienteController::class, 'confirmar'])->name('checkout.store');
+    Route::get('pedidos/{venta}/confirmacion', [ClienteController::class, 'confirmacion'])->name('checkout.confirmacion');
     Route::get('mis-pedidos', [ClienteController::class, 'orders'])->name('cliente.pedidos');
     Route::get('devoluciones', [ClienteController::class, 'returns'])->name('cliente.devoluciones');
 });
