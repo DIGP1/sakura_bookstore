@@ -64,6 +64,9 @@ function buscar() {
                         <Link v-if="usuario.rol === 'cliente'" :href="route('cliente.pedidos')" class="text-muted-foreground hover:text-foreground">
                             Mis pedidos
                         </Link>
+                        <Link v-if="usuario.rol === 'cliente'" :href="route('cliente.datos')" class="text-muted-foreground hover:text-foreground">
+                            Mis datos
+                        </Link>
                         <Button v-if="usuario.rol === 'admin'" as-child variant="outline" size="sm">
                             <Link :href="route('dashboard')">Panel</Link>
                         </Button>

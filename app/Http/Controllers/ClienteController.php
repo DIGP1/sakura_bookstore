@@ -13,6 +13,8 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Gate;
 use App\Http\Requests\SolicitarDevolucionRequest;
+use App\Http\Requests\ActualizarDatosClienteRequest;
+use Illuminate\Support\Facades\DB;
 use App\Models\MotivoDevolucion;
 use App\Models\Devolucion;
 use App\Models\TipoReembolso;
@@ -299,5 +301,58 @@ class ClienteController extends Controller
         return Inertia::render('cliente/Devoluciones', [
             'devoluciones' => $devoluciones,
         ]);
+    }
+
+    
+    /**
+     * Mis datos: nombre, teléfono y dirección del cliente.
+     */
+    public function editProfile(Request $request): Response|RedirectResponse
+    {
+        $cliente = $request->user()->cliente?->load('distrito.municipio');
+
+        if ($cliente === null) {
+            return to_route('home')->with('error', 'Tu usuario no tiene un perfil de cliente.');
+        }
+
+        return Inertia::render('cliente/MisDatos', [
+            'cliente' => [
+                'nombre' => $cliente->nombre,
+                'email' => $cliente->email ?? $request->user()->email,
+                'telefono' => $cliente->telefono,
+                'direccion' => $cliente->direccion,
+                'id_departamento' => $cliente->distrito?->municipio?->id_departamento,
+                'id_municipio' => $cliente->distrito?->id_municipio,
+                'id_distrito' => $cliente->id_distrito,
+            ],
+            'departamentos' => Departamento::orderBy('nombre')->get(['id_departamento', 'nombre']),
+        ]);
+    }
+
+    /**
+     * Guarda los datos del cliente y mantiene el nombre igual en su usuario.
+     */
+    public function updateProfile(ActualizarDatosClienteRequest $request): RedirectResponse
+    {
+        $cliente = $request->user()->cliente;
+
+        if ($cliente === null) {
+            return to_route('home')->with('error', 'Tu usuario no tiene un perfil de cliente.');
+        }
+
+        $datos = $request->validated();
+
+        DB::transaction(function () use ($cliente, $datos, $request): void {
+            $cliente->update([
+                'nombre' => $datos['nombre'],
+                'telefono' => $datos['telefono'] ?? null,
+                'id_distrito' => $datos['id_distrito'],
+                'direccion' => $datos['direccion'] ?? null,
+            ]);
+
+            $request->user()->update(['name' => $datos['nombre']]);
+        });
+
+        return to_route('cliente.datos')->with('exito', 'Tus datos se guardaron.');
     }
 }
