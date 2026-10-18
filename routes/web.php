@@ -11,6 +11,7 @@ use App\Http\Controllers\DevolucionController;
 use App\Http\Controllers\InicioController;
 use App\Http\Controllers\UbicacionController;
 use App\Http\Controllers\Admin\InventarioController;
+use App\Http\Controllers\Admin\VentasController;
 use App\Http\Controllers\VentaController;
 use Illuminate\Support\Facades\Route;
 
@@ -79,7 +80,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     // Libros
     Route::resource('libros', LibroController::class)->except('show')->parameters(['libros' => 'producto']);
 
-    // Autores, editoriales, categorías y proveedores (mismo controlador, distinta configuración).
+    // Autores, editoriales, categorías y proveedores 
     foreach (CatalogosController::TIPOS as $tipo) {
         Route::get($tipo, [CatalogosController::class, 'index'])->defaults('tipo', $tipo)->name("{$tipo}.index");
         Route::post($tipo, [CatalogosController::class, 'store'])->defaults('tipo', $tipo)->name("{$tipo}.store");
@@ -100,9 +101,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::get('inventario/{producto}', [InventarioController::class, 'show'])->whereNumber('producto')->name('inventario.show');
     Route::post('inventario/{producto}/ajustes', [InventarioController::class, 'ajustar'])->whereNumber('producto')->name('inventario.ajustar');
     
-    // Ventas y devoluciones (lógica de Josué; sus pantallas vienen en los pasos 7.7 y 7.9)
+    // Ventas y devoluciones 
     Route::post('ventas', [VentaController::class, 'store'])->name('ventas.store');
-    Route::post('ventas/{venta}/anular', [VentaController::class, 'cancel'])->name('ventas.cancel');
+    Route::get('ventas', [VentasController::class, 'index'])->name('ventas.index');
+    Route::get('ventas/{venta}', [VentasController::class, 'show'])->whereNumber('venta')->name('ventas.show');
+    Route::post('ventas/{venta}/anular', [VentasController::class, 'anular'])->whereNumber('venta')->name('ventas.cancel');
     Route::post('devoluciones/{devolucion}/aprobar', [DevolucionController::class, 'approve'])->name('devoluciones.approve');
 });
 
