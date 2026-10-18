@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\VentasController;
 use App\Http\Controllers\VentaController;
 use App\Http\Controllers\Admin\EnviosController;
 use App\Http\Controllers\Admin\DevolucionesController;
+use App\Http\Controllers\Admin\OfertasController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -80,6 +81,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
 
     // Libros
     Route::resource('libros', LibroController::class)->except('show')->parameters(['libros' => 'producto']);
+    
+      // Ofertas
+    Route::resource('ofertas', OfertasController::class)->except('show');
+    Route::post('ofertas/{oferta}/estado', [OfertasController::class, 'alternar'])->whereNumber('oferta')->name('ofertas.toggle');
 
     // Autores, editoriales, categorías y proveedores 
     foreach (CatalogosController::TIPOS as $tipo) {
