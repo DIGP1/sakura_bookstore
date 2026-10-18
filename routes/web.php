@@ -8,10 +8,11 @@ use App\Http\Controllers\CompraController;
 use App\Http\Controllers\DevolucionController;
 use App\Http\Controllers\UbicacionController;
 use App\Http\Controllers\VentaController;
+use App\Http\Controllers\InicioController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', fn () => Inertia::render('Welcome'))->name('home');
+Route::get('/', InicioController::class)->name('home');
 Route::get('catalogo', [CatalogoController::class, 'index'])->name('catalogo.index');
 Route::get('catalogo/{producto}', [CatalogoController::class, 'show'])->name('catalogo.show');
 
