@@ -8,6 +8,7 @@ use App\Http\Controllers\CompraController;
 use App\Http\Controllers\DevolucionController;
 use App\Http\Controllers\InicioController;
 use App\Http\Controllers\UbicacionController;
+use App\Http\Controllers\Admin\LibroController;
 use App\Http\Controllers\VentaController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -49,6 +50,7 @@ Route::middleware(['auth', 'role:cliente'])->group(function (): void {
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->group(function (): void {
     Route::get('/', [AdminController::class, 'index'])->name('dashboard');
+    Route::resource('libros', LibroController::class)->except('show')->parameters(['libros' => 'producto']);
     Route::post('ventas', [VentaController::class, 'store'])->name('ventas.store');
     Route::post('ventas/{venta}/anular', [VentaController::class, 'cancel'])->name('ventas.cancel');
     Route::post('compras/{compra}/recibir', [CompraController::class, 'receive'])->name('compras.receive');
