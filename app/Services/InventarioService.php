@@ -15,93 +15,134 @@ use RuntimeException;
 
 class InventarioService
 {
+    public function __construct(private readonly SincronizarNeo4jService $neo4j) {}
+
     /**
      * @param  array<string, mixed>  $saleData
      * @param  array<int, array<string, mixed>>  $details
      */
     public function createSale(array $saleData, array $details): Venta
     {
-        return DB::transaction(function () use ($saleData, $details): Venta {
-            $subtotal = 0.0;
-            $discount = 0.0;
+        $neo4jSynced = false;
+        $saleId = null;
 
-            foreach ($details as $index => $detailData) {
-                $quantity = (int) $detailData['cantidad'];
-                $product = Producto::query()->whereKey($detailData['id_producto'])->lockForUpdate()->firstOrFail();
-                $unitPrice = (float) ($detailData['precio_unitario'] ?? $product->precio_unitario);
-                $unitDiscount = (float) ($detailData['descuento_aplicado'] ?? 0);
+        try {
+            return DB::transaction(function () use ($saleData, $details, &$neo4jSynced, &$saleId): Venta {
+                $subtotal = 0.0;
+                $discount = 0.0;
 
-                if ($product->stock < $quantity) {
-                    throw ValidationException::withMessages(["detalles.$index.cantidad" => "Stock insuficiente para {$product->nombre}."]);
+                foreach ($details as $index => $detailData) {
+                    $quantity = (int) $detailData['cantidad'];
+                    $product = Producto::query()->whereKey($detailData['id_producto'])->lockForUpdate()->firstOrFail();
+                    $unitPrice = (float) ($detailData['precio_unitario'] ?? $product->precio_unitario);
+                    $unitDiscount = (float) ($detailData['descuento_aplicado'] ?? 0);
+
+                    if ($product->stock < $quantity) {
+                        throw ValidationException::withMessages(["detalles.$index.cantidad" => "Stock insuficiente para {$product->nombre}."]);
+                    }
+
+                    if ($unitPrice <= 0) {
+                        throw ValidationException::withMessages(["detalles.$index.precio_unitario" => 'El precio unitario debe ser mayor que cero.']);
+                    }
+
+                    if ($unitDiscount < 0 || $unitDiscount > $unitPrice) {
+                        throw ValidationException::withMessages(["detalles.$index.descuento_aplicado" => 'El descuento debe estar entre cero y el precio unitario.']);
+                    }
+
+                    $subtotal += round($quantity * ($unitPrice - $unitDiscount), 2);
+                    $discount += round($quantity * $unitDiscount, 2);
                 }
 
-                if ($unitPrice <= 0) {
-                    throw ValidationException::withMessages(["detalles.$index.precio_unitario" => 'El precio unitario debe ser mayor que cero.']);
+                $sale = new Venta($saleData);
+                $sale->subtotal_general = round($subtotal, 2);
+                $sale->descuento_global = 0;
+                $sale->total = round($subtotal, 2);
+                $sale->save();
+
+                foreach ($details as $detailData) {
+                    $quantity = (int) $detailData['cantidad'];
+                    $product = Producto::query()->whereKey($detailData['id_producto'])->lockForUpdate()->firstOrFail();
+                    $unitPrice = (float) ($detailData['precio_unitario'] ?? $product->precio_unitario);
+                    $unitDiscount = (float) ($detailData['descuento_aplicado'] ?? 0);
+                    $detail = $sale->detalles()->create([
+                        'id_producto' => $product->getKey(),
+                        'id_oferta' => $detailData['id_oferta'] ?? null,
+                        'cantidad' => $quantity,
+                        'precio_unitario' => $unitPrice,
+                        'descuento_aplicado' => $unitDiscount,
+                        'subtotal' => round($quantity * ($unitPrice - $unitDiscount), 2),
+                    ]);
+
+                    $product->decrement('stock', $quantity);
+                    $this->recordMovement($product->fresh(), -$quantity, (float) $product->costo_promedio, [
+                        'id_detalle_venta' => $detail->getKey(),
+                        'observacion' => 'Salida por venta',
+                    ], ['SALIDA_VENTA', 'SALIDA', 'VENTA']);
                 }
 
-                if ($unitDiscount < 0 || $unitDiscount > $unitPrice) {
-                    throw ValidationException::withMessages(["detalles.$index.descuento_aplicado" => 'El descuento debe estar entre cero y el precio unitario.']);
-                }
+                $sale = $sale->load('detalles');
+                $saleId = (int) $sale->id_venta;
+                $this->neo4j->venta($sale);
+                $neo4jSynced = true;
 
-                $subtotal += round($quantity * ($unitPrice - $unitDiscount), 2);
-                $discount += round($quantity * $unitDiscount, 2);
+                return $sale;
+            });
+        } catch (\Throwable $exception) {
+            if ($neo4jSynced && $saleId !== null) {
+                try {
+                    $this->neo4j->eliminarVenta($saleId);
+                } catch (\Throwable $compensationException) {
+                    report($compensationException);
+                }
             }
 
-            $sale = new Venta($saleData);
-            $sale->subtotal_general = round($subtotal, 2);
-            $sale->descuento_global = 0;
-            $sale->total = round($subtotal, 2);
-            $sale->save();
-
-            foreach ($details as $detailData) {
-                $quantity = (int) $detailData['cantidad'];
-                $product = Producto::query()->whereKey($detailData['id_producto'])->lockForUpdate()->firstOrFail();
-                $unitPrice = (float) ($detailData['precio_unitario'] ?? $product->precio_unitario);
-                $unitDiscount = (float) ($detailData['descuento_aplicado'] ?? 0);
-                $detail = $sale->detalles()->create([
-                    'id_producto' => $product->getKey(),
-                    'id_oferta' => $detailData['id_oferta'] ?? null,
-                    'cantidad' => $quantity,
-                    'precio_unitario' => $unitPrice,
-                    'descuento_aplicado' => $unitDiscount,
-                    'subtotal' => round($quantity * ($unitPrice - $unitDiscount), 2),
-                ]);
-
-                $product->decrement('stock', $quantity);
-                $this->recordMovement($product->fresh(), -$quantity, (float) $product->costo_promedio, [
-                    'id_detalle_venta' => $detail->getKey(),
-                    'observacion' => 'Salida por venta',
-                ], ['SALIDA_VENTA', 'SALIDA', 'VENTA']);
-            }
-
-            return $sale->load('detalles');
-        });
+            throw $exception;
+        }
     }
 
     public function cancelSale(Venta $sale): Venta
     {
-        return DB::transaction(function () use ($sale): Venta {
-            $sale = Venta::query()->whereKey($sale->getKey())->lockForUpdate()->firstOrFail();
-            $cancelledStatus = $this->stateId('tbestado_ventas', ['ANULADA', 'ANULADO', 'CANCELADA']);
+        $neo4jSynced = false;
 
-            if ((int) $sale->id_estado_ventas === $cancelledStatus) {
-                return $sale->load('detalles');
+        try {
+            return DB::transaction(function () use ($sale, &$neo4jSynced): Venta {
+                $sale = Venta::query()->whereKey($sale->getKey())->lockForUpdate()->firstOrFail();
+                $cancelledStatus = $this->stateId('tbestado_ventas', ['ANULADA', 'ANULADO', 'CANCELADA']);
+
+                if ((int) $sale->id_estado_ventas === $cancelledStatus) {
+                    return $sale->load('detalles');
+                }
+
+                foreach ($sale->detalles as $detail) {
+                    $product = Producto::query()->whereKey($detail->id_producto)->lockForUpdate()->firstOrFail();
+                    $product->increment('stock', (int) $detail->cantidad);
+                    $this->recordMovement($product->fresh(), (int) $detail->cantidad, (float) $product->costo_promedio, [
+                        'id_detalle_venta' => $detail->getKey(),
+                        'observacion' => 'Reingreso por anulación de venta',
+                    ], ['ANULACION_VENTA', 'ENTRADA_ANULACION', 'ENTRADA', 'ANULACION']);
+                }
+
+                $sale->id_estado_ventas = $cancelledStatus;
+                $sale->save();
+
+                $sale = $sale->load(['detalles', 'estado']);
+                $this->neo4j->venta($sale);
+                $neo4jSynced = true;
+
+                return $sale;
+            });
+        } catch (\Throwable $exception) {
+            if ($neo4jSynced) {
+                try {
+                    $originalSale = Venta::with(['detalles', 'estado'])->findOrFail($sale->getKey());
+                    $this->neo4j->venta($originalSale);
+                } catch (\Throwable $compensationException) {
+                    report($compensationException);
+                }
             }
 
-            foreach ($sale->detalles as $detail) {
-                $product = Producto::query()->whereKey($detail->id_producto)->lockForUpdate()->firstOrFail();
-                $product->increment('stock', (int) $detail->cantidad);
-                $this->recordMovement($product->fresh(), (int) $detail->cantidad, (float) $product->costo_promedio, [
-                    'id_detalle_venta' => $detail->getKey(),
-                    'observacion' => 'Reingreso por anulación de venta',
-                ], ['ANULACION_VENTA', 'ENTRADA_ANULACION', 'ENTRADA', 'ANULACION']);
-            }
-
-            $sale->id_estado_ventas = $cancelledStatus;
-            $sale->save();
-
-            return $sale->load('detalles');
-        });
+            throw $exception;
+        }
     }
 
     public function receivePurchase(Compra $purchase, ?int $receivedStatusId = null): Compra
@@ -139,33 +180,57 @@ class InventarioService
 
     public function approveReturn(Devolucion $return, ?int $approvedStatusId = null): Devolucion
     {
-        return DB::transaction(function () use ($return, $approvedStatusId): Devolucion {
-            $return = Devolucion::query()->whereKey($return->getKey())->lockForUpdate()->firstOrFail();
-            $approvedStatusId ??= $this->stateId('tbestado_devolucion', ['APROBADA', 'APROBADO']);
+        $neo4jSynced = false;
 
-            foreach ($return->detalles as $detail) {
-                if (! $detail->reingresa_stock || MovimientoInventario::query()->where('id_detalle_devolucion', $detail->getKey())->exists()) {
-                    continue;
+        try {
+            return DB::transaction(function () use ($return, $approvedStatusId, &$neo4jSynced): Devolucion {
+                $return = Devolucion::query()->whereKey($return->getKey())->lockForUpdate()->firstOrFail();
+                $approvedStatusId ??= $this->stateId('tbestado_devolucion', ['APROBADA', 'APROBADO']);
+
+                foreach ($return->detalles as $detail) {
+                    if (! $detail->reingresa_stock || MovimientoInventario::query()->where('id_detalle_devolucion', $detail->getKey())->exists()) {
+                        continue;
+                    }
+
+                    $saleDetail = DetalleVenta::query()->whereKey($detail->id_detalle_venta)->firstOrFail();
+                    if ((int) $detail->cantidad > (int) $saleDetail->cantidad) {
+                        throw ValidationException::withMessages(['detalles' => 'La cantidad devuelta no puede superar la cantidad vendida.']);
+                    }
+
+                    $product = Producto::query()->whereKey($saleDetail->id_producto)->lockForUpdate()->firstOrFail();
+                    $product->increment('stock', (int) $detail->cantidad);
+                    $this->recordMovement($product->fresh(), (int) $detail->cantidad, (float) $product->costo_promedio, [
+                        'id_detalle_devolucion' => $detail->getKey(),
+                        'observacion' => 'Reingreso por devolución aprobada',
+                    ], ['ENTRADA_DEVOLUCION', 'ENTRADA', 'DEVOLUCION']);
                 }
 
-                $saleDetail = DetalleVenta::query()->whereKey($detail->id_detalle_venta)->firstOrFail();
-                if ((int) $detail->cantidad > (int) $saleDetail->cantidad) {
-                    throw ValidationException::withMessages(['detalles' => 'La cantidad devuelta no puede superar la cantidad vendida.']);
-                }
+                $return->id_estado_devolucion = $approvedStatusId;
+                $return->save();
 
-                $product = Producto::query()->whereKey($saleDetail->id_producto)->lockForUpdate()->firstOrFail();
-                $product->increment('stock', (int) $detail->cantidad);
-                $this->recordMovement($product->fresh(), (int) $detail->cantidad, (float) $product->costo_promedio, [
-                    'id_detalle_devolucion' => $detail->getKey(),
-                    'observacion' => 'Reingreso por devolución aprobada',
-                ], ['ENTRADA_DEVOLUCION', 'ENTRADA', 'DEVOLUCION']);
+                $return = $return->load(['detalles.detalleVenta', 'estado', 'motivo', 'tipoReembolso']);
+                $this->neo4j->devolucion($return);
+                $neo4jSynced = true;
+
+                return $return;
+            });
+        } catch (\Throwable $exception) {
+            if ($neo4jSynced) {
+                try {
+                    $originalReturn = Devolucion::with([
+                        'detalles.detalleVenta',
+                        'estado',
+                        'motivo',
+                        'tipoReembolso',
+                    ])->findOrFail($return->getKey());
+                    $this->neo4j->devolucion($originalReturn);
+                } catch (\Throwable $compensationException) {
+                    report($compensationException);
+                }
             }
 
-            $return->id_estado_devolucion = $approvedStatusId;
-            $return->save();
-
-            return $return->load('detalles');
-        });
+            throw $exception;
+        }
     }
 
     /**

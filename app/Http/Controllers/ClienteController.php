@@ -2,23 +2,24 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ActualizarDatosClienteRequest;
 use App\Http\Requests\ConfirmarCompraRequest;
+use App\Http\Requests\SolicitarDevolucionRequest;
 use App\Models\Departamento;
+use App\Models\Devolucion;
+use App\Models\MotivoDevolucion;
 use App\Models\TipoEnvio;
+use App\Models\TipoReembolso;
 use App\Models\Venta;
 use App\Services\CarritoService;
 use App\Services\CheckoutService;
+use App\Services\DevolucionService;
+use App\Services\SincronizarNeo4jService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\Gate;
-use App\Http\Requests\SolicitarDevolucionRequest;
-use App\Http\Requests\ActualizarDatosClienteRequest;
 use Illuminate\Support\Facades\DB;
-use App\Models\MotivoDevolucion;
-use App\Models\Devolucion;
-use App\Models\TipoReembolso;
-use App\Services\DevolucionService;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
@@ -130,7 +131,7 @@ class ClienteController extends Controller
         ]);
     }
 
-        /**
+    /**
      * Mis pedidos: compras del cliente con el estado de la venta y del envío.
      */
     public function orders(Request $request): Response
@@ -159,12 +160,11 @@ class ClienteController extends Controller
         ]);
     }
 
-    
     /**
      * Detalle de un pedido con el seguimiento del envío. Solo lo ve su dueño.
      */
     public function order(Venta $venta, DevolucionService $devoluciones): Response
-        {
+    {
         Gate::authorize('view', $venta);
 
         $venta->load([
@@ -226,8 +226,6 @@ class ClienteController extends Controller
         ]);
     }
 
-
-    
     /**
      * Formulario para solicitar la devolución de una compra.
      */
@@ -269,8 +267,7 @@ class ClienteController extends Controller
             ->with('exito', "Solicitud de devolución #{$devolucion->id_devolucion} enviada. La revisaremos pronto.");
     }
 
-
-        /**
+    /**
      * Mis devoluciones: solicitudes del cliente con su estado y el monto a reembolsar.
      */
     public function returns(Request $request): Response
@@ -303,7 +300,6 @@ class ClienteController extends Controller
         ]);
     }
 
-    
     /**
      * Mis datos: nombre, teléfono y dirección del cliente.
      */
@@ -332,8 +328,10 @@ class ClienteController extends Controller
     /**
      * Guarda los datos del cliente y mantiene el nombre igual en su usuario.
      */
-    public function updateProfile(ActualizarDatosClienteRequest $request): RedirectResponse
-    {
+    public function updateProfile(
+        ActualizarDatosClienteRequest $request,
+        SincronizarNeo4jService $neo4j,
+    ): RedirectResponse {
         $cliente = $request->user()->cliente;
 
         if ($cliente === null) {
@@ -341,17 +339,33 @@ class ClienteController extends Controller
         }
 
         $datos = $request->validated();
+        $clienteAnterior = clone $cliente;
+        $neo4jSynced = false;
 
-        DB::transaction(function () use ($cliente, $datos, $request): void {
-            $cliente->update([
-                'nombre' => $datos['nombre'],
-                'telefono' => $datos['telefono'] ?? null,
-                'id_distrito' => $datos['id_distrito'],
-                'direccion' => $datos['direccion'] ?? null,
-            ]);
+        try {
+            DB::transaction(function () use ($cliente, $datos, $request, $neo4j, &$neo4jSynced): void {
+                $cliente->update([
+                    'nombre' => $datos['nombre'],
+                    'telefono' => $datos['telefono'] ?? null,
+                    'id_distrito' => $datos['id_distrito'],
+                    'direccion' => $datos['direccion'] ?? null,
+                ]);
 
-            $request->user()->update(['name' => $datos['nombre']]);
-        });
+                $request->user()->update(['name' => $datos['nombre']]);
+                $neo4j->cliente($cliente->fresh());
+                $neo4jSynced = true;
+            });
+        } catch (Throwable $exception) {
+            if ($neo4jSynced) {
+                try {
+                    $neo4j->cliente($clienteAnterior);
+                } catch (Throwable $compensationException) {
+                    report($compensationException);
+                }
+            }
+
+            throw $exception;
+        }
 
         return to_route('cliente.datos')->with('exito', 'Tus datos se guardaron.');
     }
