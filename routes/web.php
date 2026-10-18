@@ -39,6 +39,8 @@ Route::middleware(['auth', 'role:cliente'])->group(function (): void {
     Route::get('pedidos/{venta}/confirmacion', [ClienteController::class, 'confirmacion'])->name('checkout.confirmacion');
     Route::get('mis-pedidos', [ClienteController::class, 'orders'])->name('cliente.pedidos');
     Route::get('mis-pedidos/{venta}', [ClienteController::class, 'order'])->name('cliente.pedidos.show');
+    Route::get('mis-pedidos/{venta}/devolucion', [ClienteController::class, 'createReturn'])->name('cliente.devoluciones.create');
+    Route::post('mis-pedidos/{venta}/devolucion', [ClienteController::class, 'storeReturn'])->name('cliente.devoluciones.store');
     Route::get('devoluciones', [ClienteController::class, 'returns'])->name('cliente.devoluciones');
 });
 

@@ -12,6 +12,10 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Gate;
+use App\Http\Requests\SolicitarDevolucionRequest;
+use App\Models\MotivoDevolucion;
+use App\Models\TipoReembolso;
+use App\Services\DevolucionService;
 use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
@@ -156,8 +160,8 @@ class ClienteController extends Controller
     /**
      * Detalle de un pedido con el seguimiento del envío. Solo lo ve su dueño.
      */
-    public function order(Venta $venta): Response
-    {
+    public function order(Venta $venta, DevolucionService $devoluciones): Response
+        {
         Gate::authorize('view', $venta);
 
         $venta->load([
@@ -181,6 +185,7 @@ class ClienteController extends Controller
                 'numero' => str_pad((string) $venta->id_venta, 6, '0', STR_PAD_LEFT),
                 'fecha' => $venta->fecha?->format('d/m/Y H:i'),
                 'estado' => $venta->estado?->nombre,
+                'puede_devolver' => $devoluciones->motivoDeRechazo($venta) === null,
                 'lineas' => $venta->detalles->map(fn ($d) => [
                     'id_producto' => $d->id_producto,
                     'nombre' => $d->producto?->nombre,
@@ -216,6 +221,49 @@ class ClienteController extends Controller
                 ] : null,
             ],
         ]);
+    }
+
+
+    
+    /**
+     * Formulario para solicitar la devolución de una compra.
+     */
+    public function createReturn(Venta $venta, DevolucionService $devoluciones): Response|RedirectResponse
+    {
+        Gate::authorize('view', $venta);
+
+        if ($motivo = $devoluciones->motivoDeRechazo($venta)) {
+            return to_route('cliente.pedidos.show', $venta)->with('error', $motivo);
+        }
+
+        $formato = fn (string $nombre) => ucfirst(mb_strtolower(str_replace('_', ' ', $nombre)));
+
+        return Inertia::render('cliente/SolicitarDevolucion', [
+            'pedido' => [
+                'id_venta' => $venta->id_venta,
+                'numero' => str_pad((string) $venta->id_venta, 6, '0', STR_PAD_LEFT),
+                'fecha' => $venta->fecha?->format('d/m/Y'),
+                'dias_restantes' => max(0, DevolucionService::DIAS_LIMITE - (int) $venta->fecha->diffInDays(now())),
+            ],
+            'lineas' => $devoluciones->lineasDevolvibles($venta),
+            'motivos' => MotivoDevolucion::orderBy('nombre')->get()
+                ->map(fn ($m) => ['id' => $m->id_motivo_devolucion, 'nombre' => $formato($m->nombre)]),
+            'tiposReembolso' => TipoReembolso::orderBy('nombre')->get()
+                ->map(fn ($t) => ['id' => $t->id_tipo_reembolso, 'nombre' => $formato($t->nombre)]),
+        ]);
+    }
+
+    /**
+     * Guarda la solicitud de devolución. Si algo no cuadra, regresa al formulario con el error.
+     */
+    public function storeReturn(SolicitarDevolucionRequest $request, Venta $venta, DevolucionService $devoluciones): RedirectResponse
+    {
+        Gate::authorize('view', $venta);
+
+        $devolucion = $devoluciones->solicitar($venta, $request->validated());
+
+        return to_route('cliente.pedidos.show', $venta)
+            ->with('exito', "Solicitud de devolución #{$devolucion->id_devolucion} enviada. La revisaremos pronto.");
     }
 
 
