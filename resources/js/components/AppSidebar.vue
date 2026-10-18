@@ -44,7 +44,7 @@ const grupos: GrupoMenu[] = [
         items: [
             { title: 'Proveedores', href: '/admin/proveedores', icon: Warehouse },
             { title: 'Compras', href: '/admin/compras', icon: ShoppingBag },
-            { title: 'Kardex', href: '/admin/kardex', icon: ClipboardList },
+                        { title: 'Inventario', href: '/admin/inventario', icon: ClipboardList },
         ],
     },
     {

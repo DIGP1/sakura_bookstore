@@ -10,6 +10,7 @@ use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DevolucionController;
 use App\Http\Controllers\InicioController;
 use App\Http\Controllers\UbicacionController;
+use App\Http\Controllers\Admin\InventarioController;
 use App\Http\Controllers\VentaController;
 use Illuminate\Support\Facades\Route;
 
@@ -94,6 +95,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::post('compras/{compra}/recibir', [ComprasController::class, 'recibir'])->whereNumber('compra')->name('compras.receive');
     Route::post('compras/{compra}/anular', [ComprasController::class, 'anular'])->whereNumber('compra')->name('compras.cancel');
 
+    //Inventario
+    Route::get('inventario', [InventarioController::class, 'index'])->name('inventario.index');
+    Route::get('inventario/{producto}', [InventarioController::class, 'show'])->whereNumber('producto')->name('inventario.show');
+    Route::post('inventario/{producto}/ajustes', [InventarioController::class, 'ajustar'])->whereNumber('producto')->name('inventario.ajustar');
+    
     // Ventas y devoluciones (lógica de Josué; sus pantallas vienen en los pasos 7.7 y 7.9)
     Route::post('ventas', [VentaController::class, 'store'])->name('ventas.store');
     Route::post('ventas/{venta}/anular', [VentaController::class, 'cancel'])->name('ventas.cancel');
