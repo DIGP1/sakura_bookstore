@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Avisos from '@/components/admin/Avisos.vue';
 import AppLayout from '@/layouts/app/AppSidebarLayout.vue';
 import type { BreadcrumbItemType } from '@/types';
 
@@ -13,6 +14,7 @@ withDefaults(defineProps<Props>(), {
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
+        <Avisos />
         <slot />
     </AppLayout>
 </template>
