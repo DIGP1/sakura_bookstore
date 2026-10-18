@@ -41,4 +41,10 @@ class Venta extends LibreriaModel
     {
         return $this->hasOne(Envio::class, 'id_venta', 'id_venta');
     }
+
+    
+    public function devoluciones(): HasMany
+    {
+        return $this->hasMany(Devolucion::class, 'id_venta', 'id_venta');
+    }
 }

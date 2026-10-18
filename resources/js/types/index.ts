@@ -20,6 +20,8 @@ export interface SharedData {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
+    carrito: { cantidad: number };
+    flash: { exito: string | null; error: string | null };
     ziggy: {
         location: string;
         url: string;

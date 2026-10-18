@@ -6,12 +6,13 @@ use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\CompraController;
 use App\Http\Controllers\DevolucionController;
+use App\Http\Controllers\InicioController;
 use App\Http\Controllers\UbicacionController;
 use App\Http\Controllers\VentaController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', fn () => Inertia::render('Welcome'))->name('home');
+Route::get('/', InicioController::class)->name('home');
 Route::get('catalogo', [CatalogoController::class, 'index'])->name('catalogo.index');
 Route::get('catalogo/{producto}', [CatalogoController::class, 'show'])->name('catalogo.show');
 
@@ -34,8 +35,15 @@ Route::prefix('carrito')->name('carrito.')->group(function (): void {
 
 Route::middleware(['auth', 'role:cliente'])->group(function (): void {
     Route::get('checkout', [ClienteController::class, 'checkout'])->name('checkout');
+    Route::post('checkout', [ClienteController::class, 'confirmar'])->name('checkout.store');
+    Route::get('pedidos/{venta}/confirmacion', [ClienteController::class, 'confirmacion'])->name('checkout.confirmacion');
     Route::get('mis-pedidos', [ClienteController::class, 'orders'])->name('cliente.pedidos');
+    Route::get('mis-pedidos/{venta}', [ClienteController::class, 'order'])->name('cliente.pedidos.show');
+    Route::get('mis-pedidos/{venta}/devolucion', [ClienteController::class, 'createReturn'])->name('cliente.devoluciones.create');
+    Route::post('mis-pedidos/{venta}/devolucion', [ClienteController::class, 'storeReturn'])->name('cliente.devoluciones.store');
     Route::get('devoluciones', [ClienteController::class, 'returns'])->name('cliente.devoluciones');
+    Route::get('mis-datos', [ClienteController::class, 'editProfile'])->name('cliente.datos');
+    Route::patch('mis-datos', [ClienteController::class, 'updateProfile'])->name('cliente.datos.update');
 });
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->group(function (): void {
