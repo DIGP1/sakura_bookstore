@@ -11,6 +11,7 @@ use App\Services\CheckoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
@@ -150,6 +151,73 @@ class ClienteController extends Controller
             'pedidos' => $pedidos,
         ]);
     }
+
+    
+    /**
+     * Detalle de un pedido con el seguimiento del envío. Solo lo ve su dueño.
+     */
+    public function order(Venta $venta): Response
+    {
+        Gate::authorize('view', $venta);
+
+        $venta->load([
+            'estado',
+            'oferta',
+            'detalles.producto',
+            'envio.tipoEnvio',
+            'envio.proveedor',
+            'envio.estado',
+            'envio.distrito.municipio.departamento',
+            'envio.historial' => fn ($consulta) => $consulta->orderBy('fecha')->orderBy('id_historial'),
+            'envio.historial.estado',
+        ]);
+
+        $envio = $venta->envio;
+        $costoEnvio = $envio ? (float) $envio->costo_envio : 0.0;
+
+        return Inertia::render('cliente/PedidoDetalle', [
+            'pedido' => [
+                'id_venta' => $venta->id_venta,
+                'numero' => str_pad((string) $venta->id_venta, 6, '0', STR_PAD_LEFT),
+                'fecha' => $venta->fecha?->format('d/m/Y H:i'),
+                'estado' => $venta->estado?->nombre,
+                'lineas' => $venta->detalles->map(fn ($d) => [
+                    'id_producto' => $d->id_producto,
+                    'nombre' => $d->producto?->nombre,
+                    'cantidad' => (int) $d->cantidad,
+                    'precio_unitario' => (float) $d->precio_unitario,
+                    'descuento_aplicado' => (float) $d->descuento_aplicado,
+                    'subtotal' => (float) $d->subtotal,
+                ]),
+                'subtotal' => (float) $venta->subtotal_general,
+                'descuento_global' => (float) $venta->descuento_global,
+                'oferta_global' => $venta->oferta?->nombre_oferta,
+                'costo_envio' => $costoEnvio,
+                'total_a_pagar' => round((float) $venta->total + $costoEnvio, 2),
+                'envio' => $envio ? [
+                    'estado' => $envio->estado?->nombre,
+                    'tipo' => $envio->tipoEnvio?->nombre,
+                    'proveedor' => $envio->proveedor?->nombre,
+                    'direccion' => $envio->direccion_entrega,
+                    'ubicacion' => collect([
+                        $envio->distrito?->nombre,
+                        $envio->distrito?->municipio?->nombre,
+                        $envio->distrito?->municipio?->departamento?->nombre,
+                    ])->filter()->join(', '),
+                    'receptor' => $envio->nombre_receptor,
+                    'telefono' => $envio->telefono_receptor,
+                    'fecha_estimada' => $envio->fecha_estimada?->format('d/m/Y'),
+                    'fecha_entrega' => $envio->fecha_entrega?->format('d/m/Y H:i'),
+                    'historial' => $envio->historial->map(fn ($h) => [
+                        'estado' => $h->estado?->nombre,
+                        'fecha' => $h->fecha?->format('d/m/Y H:i'),
+                        'observacion' => $h->observacion,
+                    ]),
+                ] : null,
+            ],
+        ]);
+    }
+
 
     public function returns(): Response
     {

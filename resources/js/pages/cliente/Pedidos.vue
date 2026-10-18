@@ -38,7 +38,7 @@ defineProps<{ pedidos: Paginado<Pedido> }>();
             <ul class="divide-y rounded-lg border">
                 <li v-for="pedido in pedidos.data" :key="pedido.id_venta" class="flex flex-wrap items-center gap-x-6 gap-y-2 p-4">
                     <div class="min-w-32">
-                        <p class="font-mono font-semibold">#{{ pedido.numero }}</p>
+                        <Link :href="route('cliente.pedidos.show', pedido.id_venta)" class="font-mono font-semibold hover:underline">#{{ pedido.numero }}</Link>
                         <p class="text-sm text-muted-foreground">{{ pedido.fecha }}</p>
                     </div>
 
