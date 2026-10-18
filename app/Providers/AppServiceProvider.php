@@ -2,10 +2,11 @@
 
 namespace App\Providers;
 
-
+use App\Database\PostgresConnection;
+use App\Services\OfertaService;
+use Illuminate\Database\Connection;
 use Illuminate\Support\ServiceProvider;
 use Laudis\Neo4j\ClientBuilder;
-use App\Services\OfertaService;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,9 +25,12 @@ class AppServiceProvider extends ServiceProvider
                 ->withDriver('default', "bolt://{$user}:{$pass}@{$host}:{$port}")
                 ->build();
         });
-        
-          // Una sola instancia por petición: las ofertas se consultan una vez por página.
-          $this->app->scoped(OfertaService::class);
+
+        // Una sola instancia por petición: las ofertas se consultan una vez por página.
+        $this->app->scoped(OfertaService::class);
+
+        // Booleanos compatibles con EMULATE_PREPARES (ver App\Database\PostgresConnection).
+        Connection::resolverFor('pgsql', fn ($pdo, $database, $prefix, $config) => new PostgresConnection($pdo, $database, $prefix, $config));
     }
 
     /**
