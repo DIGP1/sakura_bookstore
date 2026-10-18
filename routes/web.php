@@ -22,9 +22,10 @@ Route::get('ubicaciones/departamentos/{departamento}/municipios', [UbicacionCont
 Route::get('ubicaciones/municipios/{municipio}/distritos', [UbicacionController::class, 'distritos'])
     ->name('ubicaciones.distritos');
 
-Route::get('dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified', 'role:admin'])->name('dashboard');
+  
+Route::get('dashboard', fn () => to_route('admin.dashboard'))
+      ->middleware(['auth', 'role:admin'])
+      ->name('dashboard');
 
 Route::prefix('carrito')->name('carrito.')->group(function (): void {
     Route::get('/', [CarritoController::class, 'index'])->name('index');
@@ -52,9 +53,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::post('ventas/{venta}/anular', [VentaController::class, 'cancel'])->name('ventas.cancel');
     Route::post('compras/{compra}/recibir', [CompraController::class, 'receive'])->name('compras.receive');
     Route::post('devoluciones/{devolucion}/aprobar', [DevolucionController::class, 'approve'])->name('devoluciones.approve');
-    Route::get('{section}', [AdminController::class, 'section'])
-        ->whereIn('section', ['productos', 'ventas', 'compras', 'devoluciones', 'inventario'])
-        ->name('section');
 });
 
 Route::get('/test-neo4j', function () {
