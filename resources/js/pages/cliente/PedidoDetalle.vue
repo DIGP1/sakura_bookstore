@@ -17,6 +17,7 @@ defineProps<{
         numero: string;
         fecha: string | null;
         estado: string | null;
+        puede_devolver: boolean;
         lineas: { id_producto: number; nombre: string; cantidad: number; precio_unitario: number; descuento_aplicado: number; subtotal: number }[];
         subtotal: number;
         descuento_global: number;
@@ -49,6 +50,13 @@ defineProps<{
             <h1 class="font-mono text-2xl font-semibold">Pedido #{{ pedido.numero }}</h1>
             <EstadoPedido :estado="pedido.estado" />
             <span class="text-sm text-muted-foreground">{{ pedido.fecha }}</span>
+            <Link
+                v-if="pedido.puede_devolver"
+                :href="route('cliente.devoluciones.create', pedido.id_venta)"
+                class="ml-auto rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
+            >
+                Solicitar devolución
+            </Link>
         </div>
 
         <div class="grid gap-6 lg:grid-cols-[1fr_340px]">
