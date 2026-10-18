@@ -13,6 +13,7 @@ use App\Http\Controllers\UbicacionController;
 use App\Http\Controllers\Admin\InventarioController;
 use App\Http\Controllers\Admin\VentasController;
 use App\Http\Controllers\VentaController;
+use App\Http\Controllers\Admin\EnviosController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -107,6 +108,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::get('ventas/{venta}', [VentasController::class, 'show'])->whereNumber('venta')->name('ventas.show');
     Route::post('ventas/{venta}/anular', [VentasController::class, 'anular'])->whereNumber('venta')->name('ventas.cancel');
     Route::post('devoluciones/{devolucion}/aprobar', [DevolucionController::class, 'approve'])->name('devoluciones.approve');
+
+    
+      // Envíos
+    Route::get('envios', [EnviosController::class, 'index'])->name('envios.index');
+    Route::get('envios/{envio}', [EnviosController::class, 'show'])->whereNumber('envio')->name('envios.show');
+    Route::post('envios/{envio}/estado', [EnviosController::class, 'cambiarEstado'])->whereNumber('envio')->name('envios.estado');
 });
 
 /*
