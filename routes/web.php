@@ -15,6 +15,7 @@ use App\Http\Controllers\VentaController;
 use App\Http\Controllers\Admin\EnviosController;
 use App\Http\Controllers\Admin\DevolucionesController;
 use App\Http\Controllers\Admin\OfertasController;
+use App\Http\Controllers\Admin\ClientesController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -123,7 +124,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::get('envios', [EnviosController::class, 'index'])->name('envios.index');
     Route::get('envios/{envio}', [EnviosController::class, 'show'])->whereNumber('envio')->name('envios.show');
     Route::post('envios/{envio}/estado', [EnviosController::class, 'cambiarEstado'])->whereNumber('envio')->name('envios.estado');
-});
+
+      // Clientes
+    Route::get('clientes', [ClientesController::class, 'index'])->name('clientes.index');
+    Route::get('clientes/{cliente}', [ClientesController::class, 'show'])->whereNumber('cliente')->name('clientes.show');
+    
+    });
 
 /*
 |--------------------------------------------------------------------------
