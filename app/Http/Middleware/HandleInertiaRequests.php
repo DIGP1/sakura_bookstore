@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\CarritoService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -44,6 +45,13 @@ class HandleInertiaRequests extends Middleware
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
                 'user' => $request->user(),
+            ],
+            'carrito' => fn () => [
+                'cantidad' => app(CarritoService::class)->cantidadLibros(),
+            ],
+            'flash' => fn () => [
+                'exito' => $request->session()->get('exito'),
+                'error' => $request->session()->get('error'),
             ],
         ]);
     }
