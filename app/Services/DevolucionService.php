@@ -13,6 +13,8 @@ use RuntimeException;
 
 class DevolucionService
 {
+    public function __construct(private readonly SincronizarNeo4jService $neo4j) {}
+
     /** Días que tiene el cliente para pedir una devolución. */
     public const DIAS_LIMITE = 30;
 
@@ -83,58 +85,78 @@ class DevolucionService
      */
     public function solicitar(Venta $venta, array $datos): Devolucion
     {
-        return DB::transaction(function () use ($venta, $datos): Devolucion {
-            // Se bloquea la venta para que dos solicitudes al mismo tiempo no pasen del límite.
-            $venta = Venta::query()->whereKey($venta->id_venta)->lockForUpdate()->firstOrFail();
+        $neo4jSynced = false;
+        $devolucionId = null;
 
-            if ($motivo = $this->motivoDeRechazo($venta)) {
-                throw ValidationException::withMessages(['devolucion' => $motivo]);
-            }
+        try {
+            return DB::transaction(function () use ($venta, $datos, &$neo4jSynced, &$devolucionId): Devolucion {
+                // Se bloquea la venta para que dos solicitudes al mismo tiempo no pasen del límite.
+                $venta = Venta::query()->whereKey($venta->id_venta)->lockForUpdate()->firstOrFail();
 
-            $lineas = $this->lineasDevolvibles($venta)->keyBy('id_detalle_venta');
-            $pedidas = collect($datos['lineas'])->filter(fn ($linea) => (int) $linea['cantidad'] > 0);
-
-            if ($pedidas->isEmpty()) {
-                throw ValidationException::withMessages(['lineas' => 'Elegí al menos un libro para devolver.']);
-            }
-
-            foreach ($pedidas as $pedida) {
-                $linea = $lineas->get((int) $pedida['id_detalle_venta']);
-
-                if ($linea === null) {
-                    throw ValidationException::withMessages(['lineas' => 'Uno de los libros no pertenece a esta compra.']);
+                if ($motivo = $this->motivoDeRechazo($venta)) {
+                    throw ValidationException::withMessages(['devolucion' => $motivo]);
                 }
 
-                if ((int) $pedida['cantidad'] > $linea['disponible']) {
-                    throw ValidationException::withMessages([
-                        'lineas' => "Solo podés devolver {$linea['disponible']} de \"{$linea['nombre']}\".",
+                $lineas = $this->lineasDevolvibles($venta)->keyBy('id_detalle_venta');
+                $pedidas = collect($datos['lineas'])->filter(fn ($linea) => (int) $linea['cantidad'] > 0);
+
+                if ($pedidas->isEmpty()) {
+                    throw ValidationException::withMessages(['lineas' => 'Elegí al menos un libro para devolver.']);
+                }
+
+                foreach ($pedidas as $pedida) {
+                    $linea = $lineas->get((int) $pedida['id_detalle_venta']);
+
+                    if ($linea === null) {
+                        throw ValidationException::withMessages(['lineas' => 'Uno de los libros no pertenece a esta compra.']);
+                    }
+
+                    if ((int) $pedida['cantidad'] > $linea['disponible']) {
+                        throw ValidationException::withMessages([
+                            'lineas' => "Solo podés devolver {$linea['disponible']} de \"{$linea['nombre']}\".",
+                        ]);
+                    }
+                }
+
+                $solicitada = EstadoDevolucion::query()->where('nombre', 'SOLICITADA')->value('id_estado_devolucion')
+                    ?? throw new RuntimeException('No existe el estado de devolución SOLICITADA.');
+
+                $devolucion = Devolucion::create([
+                    'id_venta' => $venta->id_venta,
+                    'id_motivo_devolucion' => $datos['id_motivo_devolucion'],
+                    'id_tipo_reembolso' => $datos['id_tipo_reembolso'],
+                    'id_estado_devolucion' => $solicitada,
+                ]);
+                $devolucionId = (int) $devolucion->id_devolucion;
+
+                foreach ($pedidas as $pedida) {
+                    $linea = $lineas->get((int) $pedida['id_detalle_venta']);
+
+                    DetalleDevolucion::create([
+                        'id_devolucion' => $devolucion->id_devolucion,
+                        'id_detalle_venta' => $linea['id_detalle_venta'],
+                        'cantidad' => (int) $pedida['cantidad'],
+                        'monto_reembolso' => round((int) $pedida['cantidad'] * $linea['precio_pagado'], 2),
+                        'reingresa_stock' => true,
                     ]);
                 }
+
+                $devolucion = $devolucion->load(['detalles.detalleVenta', 'estado', 'motivo', 'tipoReembolso']);
+                $this->neo4j->devolucion($devolucion);
+                $neo4jSynced = true;
+
+                return $devolucion;
+            });
+        } catch (\Throwable $exception) {
+            if ($neo4jSynced && $devolucionId !== null) {
+                try {
+                    $this->neo4j->eliminarDevolucion($devolucionId);
+                } catch (\Throwable $compensationException) {
+                    report($compensationException);
+                }
             }
 
-            $solicitada = EstadoDevolucion::query()->where('nombre', 'SOLICITADA')->value('id_estado_devolucion')
-                ?? throw new RuntimeException('No existe el estado de devolución SOLICITADA.');
-
-            $devolucion = Devolucion::create([
-                'id_venta' => $venta->id_venta,
-                'id_motivo_devolucion' => $datos['id_motivo_devolucion'],
-                'id_tipo_reembolso' => $datos['id_tipo_reembolso'],
-                'id_estado_devolucion' => $solicitada,
-            ]);
-
-            foreach ($pedidas as $pedida) {
-                $linea = $lineas->get((int) $pedida['id_detalle_venta']);
-
-                DetalleDevolucion::create([
-                    'id_devolucion' => $devolucion->id_devolucion,
-                    'id_detalle_venta' => $linea['id_detalle_venta'],
-                    'cantidad' => (int) $pedida['cantidad'],
-                    'monto_reembolso' => round((int) $pedida['cantidad'] * $linea['precio_pagado'], 2),
-                    'reingresa_stock' => true,
-                ]);
-            }
-
-            return $devolucion;
-        });
+            throw $exception;
+        }
     }
 }

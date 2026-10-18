@@ -19,6 +19,7 @@ class CheckoutService
     public function __construct(
         private CarritoService $carrito,
         private InventarioService $inventario,
+        private SincronizarNeo4jService $neo4j,
     ) {}
 
     /**
@@ -36,36 +37,53 @@ class CheckoutService
             throw ValidationException::withMessages(['carrito' => 'Tu carrito está vacío.']);
         }
 
-        $venta = DB::transaction(function () use ($cliente, $datos, $resumen): Venta {
-            // La venta, su detalle, el stock y el kardex los registra el InventarioService.
-            $venta = $this->inventario->createSale(
-                [
-                    'id_cliente' => $cliente->id_cliente,
-                    'id_estado_ventas' => $this->idEstado(EstadoVenta::class, 'id_estado_ventas', 'COMPLETADA'),
-                ],
-                $resumen['lineas']->map(fn (array $linea) => [
-                    'id_producto' => $linea['id_producto'],
-                    'cantidad' => $linea['cantidad'],
-                    'precio_unitario' => $linea['precio'],
-                    'descuento_aplicado' => $linea['descuento'],
-                    'id_oferta' => $linea['id_oferta'],
-                ])->all(),
-            );
+        $ventaId = null;
 
-            // Descuento sobre el total de la compra (oferta global con monto mínimo).
-            if ($resumen['descuento_global'] > 0) {
-                $venta->id_oferta = $resumen['id_oferta_global'];
-                $venta->descuento_global = $resumen['descuento_global'];
-                $venta->total = round((float) $venta->subtotal_general - $resumen['descuento_global'], 2);
-                $venta->save();
+        try {
+            $venta = DB::transaction(function () use ($cliente, $datos, $resumen, &$ventaId): Venta {
+                // La venta, su detalle, el stock y el kardex los registra el InventarioService.
+                $venta = $this->inventario->createSale(
+                    [
+                        'id_cliente' => $cliente->id_cliente,
+                        'id_estado_ventas' => $this->idEstado(EstadoVenta::class, 'id_estado_ventas', 'COMPLETADA'),
+                    ],
+                    $resumen['lineas']->map(fn (array $linea) => [
+                        'id_producto' => $linea['id_producto'],
+                        'cantidad' => $linea['cantidad'],
+                        'precio_unitario' => $linea['precio'],
+                        'descuento_aplicado' => $linea['descuento'],
+                        'id_oferta' => $linea['id_oferta'],
+                    ])->all(),
+                );
+                $ventaId = (int) $venta->id_venta;
+
+                // Descuento sobre el total de la compra (oferta global con monto mínimo).
+                if ($resumen['descuento_global'] > 0) {
+                    $venta->id_oferta = $resumen['id_oferta_global'];
+                    $venta->descuento_global = $resumen['descuento_global'];
+                    $venta->total = round((float) $venta->subtotal_general - $resumen['descuento_global'], 2);
+                    $venta->save();
+                }
+
+                if ($datos['entrega'] === 'domicilio') {
+                    $this->registrarEnvio($venta, $datos);
+                }
+
+                $this->neo4j->venta($venta->fresh(['cliente', 'estado', 'detalles']));
+
+                return $venta;
+            });
+        } catch (\Throwable $exception) {
+            if ($ventaId !== null) {
+                try {
+                    $this->neo4j->eliminarVenta($ventaId);
+                } catch (\Throwable $compensationException) {
+                    report($compensationException);
+                }
             }
 
-            if ($datos['entrega'] === 'domicilio') {
-                $this->registrarEnvio($venta, $datos);
-            }
-
-            return $venta;
-        });
+            throw $exception;
+        }
 
         $this->carrito->vaciar();
 
