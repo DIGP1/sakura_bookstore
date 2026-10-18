@@ -7,13 +7,13 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\CarritoController;
 use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\ClienteController;
-use App\Http\Controllers\DevolucionController;
 use App\Http\Controllers\InicioController;
 use App\Http\Controllers\UbicacionController;
 use App\Http\Controllers\Admin\InventarioController;
 use App\Http\Controllers\Admin\VentasController;
 use App\Http\Controllers\VentaController;
 use App\Http\Controllers\Admin\EnviosController;
+use App\Http\Controllers\Admin\DevolucionesController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -107,9 +107,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::get('ventas', [VentasController::class, 'index'])->name('ventas.index');
     Route::get('ventas/{venta}', [VentasController::class, 'show'])->whereNumber('venta')->name('ventas.show');
     Route::post('ventas/{venta}/anular', [VentasController::class, 'anular'])->whereNumber('venta')->name('ventas.cancel');
-    Route::post('devoluciones/{devolucion}/aprobar', [DevolucionController::class, 'approve'])->name('devoluciones.approve');
-
     
+    // Devoluciones
+    Route::get('devoluciones', [DevolucionesController::class, 'index'])->name('devoluciones.index');
+    Route::get('devoluciones/{devolucion}', [DevolucionesController::class, 'show'])->whereNumber('devolucion')->name('devoluciones.show');
+    Route::post('devoluciones/{devolucion}/aprobar', [DevolucionesController::class, 'aprobar'])->whereNumber('devolucion')->name('devoluciones.approve');
+    Route::post('devoluciones/{devolucion}/rechazar', [DevolucionesController::class, 'rechazar'])->whereNumber('devolucion')->name('devoluciones.reject');
+
       // Envíos
     Route::get('envios', [EnviosController::class, 'index'])->name('envios.index');
     Route::get('envios/{envio}', [EnviosController::class, 'show'])->whereNumber('envio')->name('envios.show');
