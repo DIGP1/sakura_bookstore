@@ -3,12 +3,17 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Autor;
+use App\Models\Categoria;
+use App\Models\Editorial;
+use App\Services\SincronizarNeo4jService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 /**
  * Un solo controlador para los catálogos sencillos del panel:
@@ -100,30 +105,74 @@ class CatalogosController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, SincronizarNeo4jService $neo4j): RedirectResponse
     {
-        [, $config] = $this->catalogo($request);
+        [$tipo, $config] = $this->catalogo($request);
         $datos = $request->validate($this->reglas($config), $this->mensajes());
 
-        DB::table($config['tabla'])->insert($datos);
+        $id = null;
+        $neo4jSynced = false;
+
+        try {
+            DB::transaction(function () use ($tipo, $config, $datos, $neo4j, &$id, &$neo4jSynced): void {
+                $id = (int) DB::table($config['tabla'])->insertGetId($datos, $config['llave']);
+
+                if ($this->esSincronizable($tipo)) {
+                    $this->sincronizarNeo4j($tipo, $this->modelo($tipo, $id), $neo4j);
+                    $neo4jSynced = true;
+                }
+            });
+        } catch (Throwable $exception) {
+            if ($neo4jSynced && $id !== null && $this->esSincronizable($tipo)) {
+                try {
+                    $this->eliminarNeo4j($tipo, $id, $neo4j);
+                } catch (Throwable $compensationException) {
+                    report($compensationException);
+                }
+            }
+
+            throw $exception;
+        }
 
         return back()->with('exito', ucfirst($config['singular'])." \"{$datos['nombre']}\" creado.");
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(Request $request, SincronizarNeo4jService $neo4j): RedirectResponse
     {
-        [, $config] = $this->catalogo($request);
+        [$tipo, $config] = $this->catalogo($request);
         $id = (int) $request->route('id');
         $datos = $request->validate($this->reglas($config, $id), $this->mensajes());
 
-        DB::table($config['tabla'])->where($config['llave'], $id)->update($datos);
+        $anterior = $this->esSincronizable($tipo) ? $this->modelo($tipo, $id) : null;
+        $neo4jSynced = false;
+
+        try {
+            DB::transaction(function () use ($tipo, $config, $id, $datos, $neo4j, &$neo4jSynced): void {
+                DB::table($config['tabla'])->where($config['llave'], $id)->update($datos);
+
+                if ($this->esSincronizable($tipo)) {
+                    $this->sincronizarNeo4j($tipo, $this->modelo($tipo, $id), $neo4j);
+                    $neo4jSynced = true;
+                }
+            });
+        } catch (Throwable $exception) {
+            if ($neo4jSynced && $anterior !== null) {
+                try {
+                    $this->sincronizarNeo4j($tipo, $anterior, $neo4j);
+                } catch (Throwable $compensationException) {
+                    report($compensationException);
+                }
+            }
+
+            throw $exception;
+        }
 
         return back()->with('exito', ucfirst($config['singular'])." \"{$datos['nombre']}\" actualizado.");
     }
 
-    public function destroy(Request $request): RedirectResponse
+    public function destroy(Request $request, SincronizarNeo4jService $neo4j): RedirectResponse
     {
-        [, $config] = $this->catalogo($request);
+        [$tipo, $config] = $this->catalogo($request);
         $id = (int) $request->route('id');
 
         $fila = DB::table($config['tabla'])
@@ -138,7 +187,29 @@ class CatalogosController extends Controller
             return back()->with('error', "No se puede eliminar \"{$fila->nombre}\" porque tiene {$config['usos_texto']} asociados.");
         }
 
-        DB::table($config['tabla'])->where($config['llave'], $id)->delete();
+        $anterior = $this->esSincronizable($tipo) ? $this->modelo($tipo, $id) : null;
+        $neo4jSynced = false;
+
+        try {
+            DB::transaction(function () use ($tipo, $config, $id, $neo4j, &$neo4jSynced): void {
+                DB::table($config['tabla'])->where($config['llave'], $id)->delete();
+
+                if ($this->esSincronizable($tipo)) {
+                    $this->eliminarNeo4j($tipo, $id, $neo4j);
+                    $neo4jSynced = true;
+                }
+            });
+        } catch (Throwable $exception) {
+            if ($neo4jSynced && $anterior !== null) {
+                try {
+                    $this->sincronizarNeo4j($tipo, $anterior, $neo4j);
+                } catch (Throwable $compensationException) {
+                    report($compensationException);
+                }
+            }
+
+            throw $exception;
+        }
 
         return back()->with('exito', ucfirst($config['singular'])." \"{$fila->nombre}\" eliminado.");
     }
@@ -173,5 +244,40 @@ class CatalogosController extends Controller
             'nombre.unique' => 'Ya existe un registro con ese nombre.',
             'telefono.regex' => 'El teléfono solo puede tener números, espacios, + y -.',
         ];
+    }
+
+    private function esSincronizable(string $tipo): bool
+    {
+        return in_array($tipo, ['autores', 'editoriales', 'categorias'], true);
+    }
+
+    private function modelo(string $tipo, int $id): Autor|Editorial|Categoria
+    {
+        return match ($tipo) {
+            'autores' => Autor::query()->findOrFail($id),
+            'editoriales' => Editorial::query()->findOrFail($id),
+            'categorias' => Categoria::query()->findOrFail($id),
+        };
+    }
+
+    private function sincronizarNeo4j(
+        string $tipo,
+        Autor|Editorial|Categoria $modelo,
+        SincronizarNeo4jService $neo4j,
+    ): void {
+        match ($tipo) {
+            'autores' => $neo4j->autor($modelo),
+            'editoriales' => $neo4j->editorial($modelo),
+            'categorias' => $neo4j->categoria($modelo),
+        };
+    }
+
+    private function eliminarNeo4j(string $tipo, int $id, SincronizarNeo4jService $neo4j): void
+    {
+        match ($tipo) {
+            'autores' => $neo4j->eliminarAutor($id),
+            'editoriales' => $neo4j->eliminarEditorial($id),
+            'categorias' => $neo4j->eliminarCategoria($id),
+        };
     }
 }

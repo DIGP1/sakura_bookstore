@@ -2,8 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\Autor;
+use App\Models\Categoria;
 use App\Models\Cliente;
 use App\Models\Devolucion;
+use App\Models\Editorial;
+use App\Models\Oferta;
+use App\Models\Producto;
 use App\Models\Venta;
 use Laudis\Neo4j\Contracts\ClientInterface;
 use Laudis\Neo4j\Contracts\TransactionInterface;
@@ -101,6 +106,169 @@ class SincronizarNeo4jService
                         'id_oferta' => $detalle->id_oferta === null ? null : (int) $detalle->id_oferta,
                     ],
                 );
+
+            }
+        });
+    }
+
+    public function producto(Producto $producto): void
+    {
+        $producto->load(['editorial', 'autores', 'categorias']);
+
+        $this->neo4j->writeTransaction(function (TransactionInterface $transaction) use ($producto): void {
+            $transaction->run(
+                'MERGE (l:Libro {id_producto: $id_producto})
+                 SET l.isbn = $isbn, l.nombre = $nombre, l.anio_publicacion = $anio_publicacion,
+                     l.idioma = $idioma, l.formato = $formato, l.precio_unitario = $precio_unitario,
+                     l.stock = $stock, l.stock_minimo = $stock_minimo, l.costo_promedio = $costo_promedio
+                 WITH l
+                 OPTIONAL MATCH (l)-[rel:PUBLICADO_POR]->()
+                 DELETE rel
+                 WITH l
+                 MATCH (e:Editorial {id_editorial: $id_editorial})
+                 MERGE (l)-[:PUBLICADO_POR]->(e)',
+                [
+                    'id_producto' => (int) $producto->id_producto,
+                    'isbn' => $producto->isbn,
+                    'nombre' => $producto->nombre,
+                    'anio_publicacion' => $producto->anio_publicacion,
+                    'idioma' => $producto->idioma,
+                    'formato' => $producto->formato,
+                    'precio_unitario' => (float) $producto->precio_unitario,
+                    'stock' => (int) $producto->stock,
+                    'stock_minimo' => (int) $producto->stock_minimo,
+                    'costo_promedio' => (float) $producto->costo_promedio,
+                    'id_editorial' => (int) $producto->id_editorial,
+                ],
+            );
+
+            $transaction->run(
+                'MATCH (l:Libro {id_producto: $id_producto})-[rel:ESCRITO_POR]->()
+                 DELETE rel',
+                ['id_producto' => (int) $producto->id_producto],
+            );
+
+            foreach ($producto->autores as $autor) {
+                $transaction->run(
+                    'MATCH (l:Libro {id_producto: $id_producto})
+                     MATCH (a:Autor {id_autor: $id_autor})
+                     MERGE (l)-[:ESCRITO_POR {rol: $rol}]->(a)',
+                    [
+                        'id_producto' => (int) $producto->id_producto,
+                        'id_autor' => (int) $autor->id_autor,
+                        'rol' => $autor->pivot->rol,
+                    ],
+                );
+
+            }
+
+            $transaction->run(
+                'MATCH (l:Libro {id_producto: $id_producto})-[rel:PERTENECE_A]->()
+                 DELETE rel',
+                ['id_producto' => (int) $producto->id_producto],
+            );
+            foreach ($producto->categorias as $categoria) {
+                $transaction->run(
+                    'MATCH (l:Libro {id_producto: $id_producto})
+                     MATCH (cat:Categoria {id_categoria: $id_categoria})
+                     MERGE (l)-[:PERTENECE_A]->(cat)',
+                    [
+                        'id_producto' => (int) $producto->id_producto,
+                        'id_categoria' => (int) $categoria->id_categoria,
+                    ],
+                );
+            }
+        });
+    }
+
+    public function autor(Autor $autor): void
+    {
+        $this->neo4j->writeTransaction(fn (TransactionInterface $transaction) => $transaction->run(
+            'MERGE (a:Autor {id_autor: $id_autor})
+             SET a.nombre = $nombre, a.nacionalidad = $nacionalidad',
+            [
+                'id_autor' => (int) $autor->id_autor,
+                'nombre' => $autor->nombre,
+                'nacionalidad' => $autor->nacionalidad,
+            ],
+        ));
+    }
+
+    public function editorial(Editorial $editorial): void
+    {
+        $this->neo4j->writeTransaction(fn (TransactionInterface $transaction) => $transaction->run(
+            'MERGE (e:Editorial {id_editorial: $id_editorial})
+             SET e.nombre = $nombre, e.pais = $pais',
+            [
+                'id_editorial' => (int) $editorial->id_editorial,
+                'nombre' => $editorial->nombre,
+                'pais' => $editorial->pais,
+            ],
+        ));
+    }
+
+    public function categoria(Categoria $categoria): void
+    {
+        $this->neo4j->writeTransaction(fn (TransactionInterface $transaction) => $transaction->run(
+            'MERGE (cat:Categoria {id_categoria: $id_categoria})
+             SET cat.nombre = $nombre',
+            [
+                'id_categoria' => (int) $categoria->id_categoria,
+                'nombre' => $categoria->nombre,
+            ],
+        ));
+    }
+
+    public function oferta(Oferta $oferta): void
+    {
+        $oferta->load(['tipoDescuento', 'productos', 'categorias']);
+
+        $this->neo4j->writeTransaction(function (TransactionInterface $transaction) use ($oferta): void {
+            $transaction->run(
+                'MERGE (o:Oferta {id_oferta: $id_oferta})
+                 SET o.nombre_oferta = $nombre_oferta, o.tipo_descuento = $tipo_descuento,
+                     o.valor_descuento = $valor_descuento, o.fecha_inicio = date($fecha_inicio),
+                     o.fecha_fin = date($fecha_fin), o.estado = $estado, o.monto_minimo = $monto_minimo',
+                [
+                    'id_oferta' => (int) $oferta->id_oferta,
+                    'nombre_oferta' => $oferta->nombre_oferta,
+                    'tipo_descuento' => $oferta->tipoDescuento?->nombre,
+                    'valor_descuento' => (float) $oferta->valor_descuento,
+                    'fecha_inicio' => $oferta->fecha_inicio?->toDateString(),
+                    'fecha_fin' => $oferta->fecha_fin?->toDateString(),
+                    'estado' => (bool) $oferta->estado,
+                    'monto_minimo' => $oferta->monto_minimo === null ? null : (float) $oferta->monto_minimo,
+                ],
+            );
+
+            $transaction->run(
+                'MATCH (o:Oferta {id_oferta: $id_oferta})-[rel:APLICA_A_PRODUCTO|APLICA_A_CATEGORIA]->()
+                 DELETE rel',
+                ['id_oferta' => (int) $oferta->id_oferta],
+            );
+
+            foreach ($oferta->productos as $producto) {
+                $transaction->run(
+                    'MATCH (o:Oferta {id_oferta: $id_oferta})
+                     MATCH (l:Libro {id_producto: $id_producto})
+                     MERGE (o)-[:APLICA_A_PRODUCTO]->(l)',
+                    [
+                        'id_oferta' => (int) $oferta->id_oferta,
+                        'id_producto' => (int) $producto->id_producto,
+                    ],
+                );
+            }
+
+            foreach ($oferta->categorias as $categoria) {
+                $transaction->run(
+                    'MATCH (o:Oferta {id_oferta: $id_oferta})
+                     MATCH (cat:Categoria {id_categoria: $id_categoria})
+                     MERGE (o)-[:APLICA_A_CATEGORIA]->(cat)',
+                    [
+                        'id_oferta' => (int) $oferta->id_oferta,
+                        'id_categoria' => (int) $categoria->id_categoria,
+                    ],
+                );
             }
         });
     }
@@ -171,6 +339,46 @@ class SincronizarNeo4jService
         $this->neo4j->writeTransaction(fn (TransactionInterface $transaction) => $transaction->run(
             'MATCH (d:Devolucion {id_devolucion: $id_devolucion}) DETACH DELETE d',
             ['id_devolucion' => $devolucionId],
+        ));
+    }
+
+    public function eliminarProducto(int $productoId): void
+    {
+        $this->neo4j->writeTransaction(fn (TransactionInterface $transaction) => $transaction->run(
+            'MATCH (l:Libro {id_producto: $id_producto}) DETACH DELETE l',
+            ['id_producto' => $productoId],
+        ));
+    }
+
+    public function eliminarAutor(int $autorId): void
+    {
+        $this->neo4j->writeTransaction(fn (TransactionInterface $transaction) => $transaction->run(
+            'MATCH (a:Autor {id_autor: $id_autor}) DETACH DELETE a',
+            ['id_autor' => $autorId],
+        ));
+    }
+
+    public function eliminarEditorial(int $editorialId): void
+    {
+        $this->neo4j->writeTransaction(fn (TransactionInterface $transaction) => $transaction->run(
+            'MATCH (e:Editorial {id_editorial: $id_editorial}) DETACH DELETE e',
+            ['id_editorial' => $editorialId],
+        ));
+    }
+
+    public function eliminarCategoria(int $categoriaId): void
+    {
+        $this->neo4j->writeTransaction(fn (TransactionInterface $transaction) => $transaction->run(
+            'MATCH (cat:Categoria {id_categoria: $id_categoria}) DETACH DELETE cat',
+            ['id_categoria' => $categoriaId],
+        ));
+    }
+
+    public function eliminarOferta(int $ofertaId): void
+    {
+        $this->neo4j->writeTransaction(fn (TransactionInterface $transaction) => $transaction->run(
+            'MATCH (o:Oferta {id_oferta: $id_oferta}) DETACH DELETE o',
+            ['id_oferta' => $ofertaId],
         ));
     }
 }

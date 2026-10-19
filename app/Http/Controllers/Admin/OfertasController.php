@@ -8,11 +8,13 @@ use App\Models\Categoria;
 use App\Models\Oferta;
 use App\Models\Producto;
 use App\Models\TipoDescuento;
+use App\Services\SincronizarNeo4jService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class OfertasController extends Controller
 {
@@ -59,14 +61,31 @@ class OfertasController extends Controller
         return Inertia::render('admin/ofertas/Form', [...$this->opciones(), 'oferta' => null]);
     }
 
-    public function store(OfertaRequest $request): RedirectResponse
+    public function store(OfertaRequest $request, SincronizarNeo4jService $neo4j): RedirectResponse
     {
         $datos = $request->validated();
+        $ofertaId = null;
+        $neo4jSynced = false;
 
-        DB::transaction(function () use ($datos): void {
-            $oferta = Oferta::create($this->campos($datos));
-            $this->sincronizar($oferta, $datos);
-        });
+        try {
+            DB::transaction(function () use ($datos, $neo4j, &$ofertaId, &$neo4jSynced): void {
+                $oferta = Oferta::create($this->campos($datos));
+                $ofertaId = (int) $oferta->id_oferta;
+                $this->sincronizar($oferta, $datos);
+                $neo4j->oferta($oferta->fresh());
+                $neo4jSynced = true;
+            });
+        } catch (Throwable $exception) {
+            if ($neo4jSynced && $ofertaId !== null) {
+                try {
+                    $neo4j->eliminarOferta($ofertaId);
+                } catch (Throwable $compensationException) {
+                    report($compensationException);
+                }
+            }
+
+            throw $exception;
+        }
 
         return to_route('admin.ofertas.index')->with('exito', "Oferta \"{$datos['nombre_oferta']}\" creada.");
     }
@@ -93,14 +112,37 @@ class OfertasController extends Controller
         ]);
     }
 
-    public function update(OfertaRequest $request, Oferta $oferta): RedirectResponse
-    {
+    public function update(
+        OfertaRequest $request,
+        Oferta $oferta,
+        SincronizarNeo4jService $neo4j,
+    ): RedirectResponse {
         $datos = $request->validated();
+        $ofertaAnterior = $oferta->load(['tipoDescuento', 'productos', 'categorias'])->replicate();
+        $ofertaAnterior->id_oferta = $oferta->id_oferta;
+        $ofertaAnterior->setRelation('tipoDescuento', $oferta->tipoDescuento);
+        $ofertaAnterior->setRelation('productos', $oferta->productos);
+        $ofertaAnterior->setRelation('categorias', $oferta->categorias);
+        $neo4jSynced = false;
 
-        DB::transaction(function () use ($oferta, $datos): void {
-            $oferta->update($this->campos($datos));
-            $this->sincronizar($oferta, $datos);
-        });
+        try {
+            DB::transaction(function () use ($oferta, $datos, $neo4j, &$neo4jSynced): void {
+                $oferta->update($this->campos($datos));
+                $this->sincronizar($oferta, $datos);
+                $neo4j->oferta($oferta->fresh());
+                $neo4jSynced = true;
+            });
+        } catch (Throwable $exception) {
+            if ($neo4jSynced) {
+                try {
+                    $neo4j->oferta($ofertaAnterior);
+                } catch (Throwable $compensationException) {
+                    report($compensationException);
+                }
+            }
+
+            throw $exception;
+        }
 
         return to_route('admin.ofertas.index')->with('exito', "Oferta \"{$datos['nombre_oferta']}\" actualizada.");
     }
@@ -108,9 +150,32 @@ class OfertasController extends Controller
     /**
      * Activa o desactiva la oferta. La tienda la deja de aplicar al instante.
      */
-    public function alternar(Oferta $oferta): RedirectResponse
+    public function alternar(Oferta $oferta, SincronizarNeo4jService $neo4j): RedirectResponse
     {
-        $oferta->update(['estado' => ! $oferta->estado]);
+        $ofertaAnterior = $oferta->load(['tipoDescuento', 'productos', 'categorias'])->replicate();
+        $ofertaAnterior->id_oferta = $oferta->id_oferta;
+        $ofertaAnterior->setRelation('tipoDescuento', $oferta->tipoDescuento);
+        $ofertaAnterior->setRelation('productos', $oferta->productos);
+        $ofertaAnterior->setRelation('categorias', $oferta->categorias);
+        $neo4jSynced = false;
+
+        try {
+            DB::transaction(function () use ($oferta, $neo4j, &$neo4jSynced): void {
+                $oferta->update(['estado' => ! $oferta->estado]);
+                $neo4j->oferta($oferta->fresh());
+                $neo4jSynced = true;
+            });
+        } catch (Throwable $exception) {
+            if ($neo4jSynced) {
+                try {
+                    $neo4j->oferta($ofertaAnterior);
+                } catch (Throwable $compensationException) {
+                    report($compensationException);
+                }
+            }
+
+            throw $exception;
+        }
 
         return back()->with('exito', "Oferta \"{$oferta->nombre_oferta}\" ".($oferta->estado ? 'activada.' : 'desactivada.'));
     }
@@ -118,7 +183,7 @@ class OfertasController extends Controller
     /**
      * Solo se borra una oferta que nunca se usó; si ya se usó, se desactiva para no perder el historial.
      */
-    public function destroy(Oferta $oferta): RedirectResponse
+    public function destroy(Oferta $oferta, SincronizarNeo4jService $neo4j): RedirectResponse
     {
         $usos = (int) DB::table('tboferta')->where('id_oferta', $oferta->id_oferta)->selectRaw(self::USOS.' AS usos')->value('usos');
 
@@ -126,7 +191,26 @@ class OfertasController extends Controller
             return back()->with('error', "\"{$oferta->nombre_oferta}\" ya se usó en ventas. Desactivala en vez de borrarla.");
         }
 
-        $oferta->delete();
+        $ofertaAnterior = $oferta->load(['tipoDescuento', 'productos', 'categorias']);
+        $neo4jSynced = false;
+
+        try {
+            DB::transaction(function () use ($oferta, $neo4j, &$neo4jSynced): void {
+                $oferta->delete();
+                $neo4j->eliminarOferta((int) $oferta->id_oferta);
+                $neo4jSynced = true;
+            });
+        } catch (Throwable $exception) {
+            if ($neo4jSynced) {
+                try {
+                    $neo4j->oferta($ofertaAnterior);
+                } catch (Throwable $compensationException) {
+                    report($compensationException);
+                }
+            }
+
+            throw $exception;
+        }
 
         return back()->with('exito', "Oferta \"{$oferta->nombre_oferta}\" eliminada.");
     }
