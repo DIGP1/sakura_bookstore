@@ -6,6 +6,7 @@ use App\Models\Oferta;
 use App\Models\Producto;
 use Illuminate\Support\Collection;
 
+
 class OfertaService
 {
     /** Se guardan en memoria para no consultar la base en cada libro. */

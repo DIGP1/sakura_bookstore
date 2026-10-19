@@ -2,11 +2,12 @@
 
 namespace App\Providers;
 
-
+use App\Database\PostgresConnection;
+use App\Services\OfertaService;
+use Illuminate\Database\Connection;
 use Illuminate\Support\ServiceProvider;
 use Laudis\Neo4j\Authentication\Authenticate;
 use Laudis\Neo4j\ClientBuilder;
-use App\Services\OfertaService;
 use Laudis\Neo4j\Contracts\ClientInterface;
 
 class AppServiceProvider extends ServiceProvider
@@ -16,6 +17,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Conexión a Neo4j (Diego).
         $this->app->singleton(ClientInterface::class, function (): ClientInterface {
             $neo4jConfig = config('database.connections.neo4j');
             $uri = sprintf(
@@ -34,11 +36,14 @@ class AppServiceProvider extends ServiceProvider
                 ->withDefaultDriver('bolt')
                 ->build();
         });
-        
-          // Una sola instancia por petición: las ofertas se consultan una vez por página.
-          $this->app->scoped(OfertaService::class);
 
         $this->app->alias(ClientInterface::class, 'neo4j');
+
+        // Una sola instancia por petición: las ofertas se consultan una vez por página (Angel).
+        $this->app->scoped(OfertaService::class);
+
+        // Booleanos compatibles con EMULATE_PREPARES (Angel, ver App\Database\PostgresConnection).
+        Connection::resolverFor('pgsql', fn ($pdo, $database, $prefix, $config) => new PostgresConnection($pdo, $database, $prefix, $config));
     }
 
     /**
