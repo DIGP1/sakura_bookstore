@@ -10,6 +10,7 @@ import type { BreadcrumbItem } from '@/types';
 import type { Opcion } from '@/types/tienda';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { LoaderCircle } from 'lucide-vue-next';
+import { computed, watch } from 'vue';
 
 interface LibroEditable {
     id_producto: number;
@@ -36,32 +37,57 @@ const props = defineProps<{
     formatos: { valor: string; nombre: string }[];
 }>();
 
-const editando = props.libro !== null;
+const editando = computed(() => props.libro !== null);
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Inicio', href: '/admin' },
     { title: 'Libros', href: '/admin/libros' },
-    { title: editando ? 'Editar' : 'Nuevo', href: '#' },
+    { title: editando.value ? 'Editar' : 'Nuevo', href: '#' },
 ];
 
 const form = useForm({
-    isbn: props.libro?.isbn ?? '',
-    nombre: props.libro?.nombre ?? '',
-    id_editorial: (props.libro?.id_editorial ?? '') as number | '',
-    anio_publicacion: (props.libro?.anio_publicacion ?? '') as number | '',
-    idioma: props.libro?.idioma ?? 'Español',
-    formato: props.libro?.formato ?? 'RUSTICA',
-    num_paginas: (props.libro?.num_paginas ?? '') as number | '',
-    precio_unitario: (props.libro?.precio_unitario ?? '') as number | '',
-    stock_minimo: props.libro?.stock_minimo ?? 5,
-    autores: props.libro?.autores ?? ([] as number[]),
-    categorias: props.libro?.categorias ?? ([] as number[]),
+    isbn: '',
+    nombre: '',
+    id_editorial: '' as number | '',
+    anio_publicacion: '' as number | '',
+    idioma: 'Español',
+    formato: 'RUSTICA',
+    num_paginas: '' as number | '',
+    precio_unitario: '' as number | '',
+    stock_minimo: 5,
+    autores: [] as number[],
+    categorias: [] as number[],
     imagen: null as File | null,
 });
 
+watch(
+    () => props.libro,
+    (libro) => {
+        form.isbn = libro?.isbn ?? '';
+        form.nombre = libro?.nombre ?? '';
+        form.id_editorial = libro?.id_editorial ?? '';
+        form.anio_publicacion = libro?.anio_publicacion ?? '';
+        form.idioma = libro?.idioma ?? 'Español';
+        form.formato = libro?.formato ?? 'RUSTICA';
+        form.num_paginas = libro?.num_paginas ?? '';
+        form.precio_unitario = libro?.precio_unitario ?? '';
+        form.stock_minimo = libro?.stock_minimo ?? 5;
+        form.autores = libro?.autores ?? [];
+        form.categorias = libro?.categorias ?? [];
+        form.imagen = null;
+        form.clearErrors();
+    },
+    { immediate: true },
+);
+
 function guardar() {
     if (props.libro) {
-        form.put(route('admin.libros.update', props.libro.id_producto), { preserveScroll: true, forceFormData: true });
+        form
+            .transform((datos) => ({ ...datos, _method: 'put' }))
+            .post(route('admin.libros.update', props.libro.id_producto), {
+                preserveScroll: true,
+                forceFormData: true,
+            });
     } else {
         form.post(route('admin.libros.store'), { preserveScroll: true, forceFormData: true });
     }
