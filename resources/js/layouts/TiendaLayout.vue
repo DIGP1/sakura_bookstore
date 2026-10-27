@@ -96,6 +96,7 @@ function buscar() {
                             <DropdownMenuTrigger>
                                 <button class="flex items-center gap-1.5 transition-opacity hover:opacity-75" aria-label="Abrir menú de usuario">
                                     <UserRound class="h-5 w-5" />
+                                    {{ usuario.name }}
                                     <ChevronDown class="h-3.5 w-3.5" />
                                 </button>
                             </DropdownMenuTrigger>
@@ -128,7 +129,7 @@ function buscar() {
                     </template>
                     <template v-else>
                         <Link :href="route('login')" class="hidden items-center gap-1 text-sm font-semibold transition-opacity hover:opacity-75 sm:flex" aria-label="Iniciar sesión">
-                            <UserRoundCheck class="h-5 w-5" />
+                            <UserRoundPlus class="h-5 w-5" />
                             Iniciar sesión
                         </Link>
                         <!-- <Link :href="route('register')" class="hidden items-center gap-1 text-sm font-semibold transition-opacity hover:opacity-75 sm:flex">

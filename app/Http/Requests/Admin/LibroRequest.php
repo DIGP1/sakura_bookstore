@@ -40,6 +40,7 @@ class LibroRequest extends FormRequest
             'num_paginas' => ['nullable', 'integer', 'min:1', 'max:20000'],
             'precio_unitario' => ['required', 'numeric', 'gt:0', 'max:99999999'],
             'stock_minimo' => ['required', 'integer', 'min:0', 'max:100000'],
+            'imagen' => ['nullable', 'image', 'mimes:jpg', 'extensions:jpg', 'max:5120'],
             'autores' => ['required', 'array', 'min:1'],
             'autores.*' => ['integer', Rule::exists('tbautores', 'id_autor')],
             'categorias' => ['required', 'array', 'min:1'],
@@ -67,6 +68,7 @@ class LibroRequest extends FormRequest
             'num_paginas' => 'número de páginas',
             'precio_unitario' => 'precio',
             'stock_minimo' => 'stock mínimo',
+            'imagen' => 'portada',
         ];
     }
 }

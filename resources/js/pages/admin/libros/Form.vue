@@ -56,14 +56,20 @@ const form = useForm({
     stock_minimo: props.libro?.stock_minimo ?? 5,
     autores: props.libro?.autores ?? ([] as number[]),
     categorias: props.libro?.categorias ?? ([] as number[]),
+    imagen: null as File | null,
 });
 
 function guardar() {
     if (props.libro) {
-        form.put(route('admin.libros.update', props.libro.id_producto), { preserveScroll: true });
+        form.put(route('admin.libros.update', props.libro.id_producto), { preserveScroll: true, forceFormData: true });
     } else {
-        form.post(route('admin.libros.store'), { preserveScroll: true });
+        form.post(route('admin.libros.store'), { preserveScroll: true, forceFormData: true });
     }
+}
+
+function seleccionarImagen(event: Event) {
+    const input = event.target as HTMLInputElement;
+    form.imagen = input.files?.[0] ?? null;
 }
 </script>
 
@@ -153,6 +159,20 @@ function guardar() {
                         <Input id="stock_minimo" v-model.number="form.stock_minimo" type="number" min="0" />
                         <InputError :message="form.errors.stock_minimo" />
                     </div>
+                </div>
+
+                <div class="grid gap-2">
+                    <Label for="imagen">Portada</Label>
+                    <Input
+                        id="imagen"
+                        type="file"
+                        accept=".jpg,image/jpeg"
+                        @change="seleccionarImagen"
+                    />
+                    <InputError :message="form.errors.imagen" />
+                    <p class="text-xs text-muted-foreground">
+                        Solo se permiten imágenes JPG de hasta 5 MB.
+                    </p>
                 </div>
 
                 <div class="flex items-center gap-2">
