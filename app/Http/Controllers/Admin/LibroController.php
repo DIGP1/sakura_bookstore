@@ -35,9 +35,15 @@ class LibroController extends Controller
 
         if ($texto = trim($filtros['q'] ?? '')) {
             $patron = '%'.mb_strtolower($texto).'%';
-            $consulta->where(fn ($q) => $q
-                ->whereRaw('LOWER(nombre) LIKE ?', [$patron])
-                ->orWhere('isbn', 'like', '%'.preg_replace('/\D/', '', $texto).'%'));
+            $isbn = preg_replace('/\D/', '', $texto);
+
+            $consulta->where(function ($q) use ($patron, $isbn): void {
+                $q->whereRaw('LOWER(nombre) LIKE ?', [$patron]);
+
+                if ($isbn !== '') {
+                    $q->orWhere('isbn', 'like', "%{$isbn}%");
+                }
+            });
         }
 
         if (! empty($filtros['categoria'])) {
