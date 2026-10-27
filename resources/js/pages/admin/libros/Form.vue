@@ -10,7 +10,7 @@ import type { BreadcrumbItem } from '@/types';
 import type { Opcion } from '@/types/tienda';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { LoaderCircle } from 'lucide-vue-next';
-import { computed, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 interface LibroEditable {
     id_producto: number;
@@ -38,6 +38,10 @@ const props = defineProps<{
 }>();
 
 const editando = computed(() => props.libro !== null);
+const mostrarPortadaActual = ref(true);
+const portadaActualUrl = computed(() =>
+    props.libro ? `${route('catalogo.portada', props.libro.id_producto)}?v=${Date.now()}` : '',
+);
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Inicio', href: '/admin' },
@@ -75,6 +79,7 @@ watch(
         form.autores = libro?.autores ?? [];
         form.categorias = libro?.categorias ?? [];
         form.imagen = null;
+        mostrarPortadaActual.value = true;
         form.clearErrors();
     },
     { immediate: true },
@@ -189,6 +194,15 @@ function seleccionarImagen(event: Event) {
 
                 <div class="grid gap-2">
                     <Label for="imagen">Portada</Label>
+                    <div v-if="libro && mostrarPortadaActual" class="flex items-center gap-3 rounded-md border bg-muted/30 p-3">
+                        <img
+                            :src="portadaActualUrl"
+                            :alt="`Portada actual de ${libro.nombre}`"
+                            class="h-32 w-24 rounded object-cover shadow-sm"
+                            @error="mostrarPortadaActual = false"
+                        />
+                        <p class="text-sm text-muted-foreground">Portada actual</p>
+                    </div>
                     <Input
                         id="imagen"
                         type="file"

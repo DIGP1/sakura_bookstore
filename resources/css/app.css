@@ -36,6 +36,15 @@ html {
     --border: 214 32% 91%;
     --input: 214 32% 91%;
     --ring: 340 75% 55%; /* Anillo de foco rosa */
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 340 75% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 340 30% 92%;
+    --sidebar-accent-foreground: 340 75% 40%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 340 75% 55%;
     
     --radius: 0.5rem;
   }

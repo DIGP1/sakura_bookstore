@@ -139,22 +139,6 @@ function buscar() {
                     </template>
                 </div>
             </nav>
-            <!-- <div class="grid grid-cols-3 items-center gap-2 px-3 pb-3 text-center text-sm font-semibold lg:hidden">
-                <Link :href="route('home')" class="flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap"><House class="h-4 w-4 shrink-0" /> <span>Tienda</span></Link>
-                <Link :href="route('catalogo.index')" class="flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap"><BookOpen class="h-4 w-4 shrink-0" /> <span>Catálogo</span></Link>
-                <DropdownMenu>
-                    <DropdownMenuTrigger as-child>
-                        <button class="flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap"><Tag class="h-4 w-4 shrink-0" /> <span>Categorías</span></button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="center" class="z-50 max-h-72 w-56 overflow-y-auto">
-                        <DropdownMenuLabel>Categorías disponibles</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem v-for="categoria in categorias" :key="categoria.id" :as-child="true">
-                            <Link :href="route('catalogo.index', { categoria: categoria.id })" class="w-full">{{ categoria.nombre }}</Link>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div> -->
         </header>
 
         <div class="mx-auto w-full max-w-6xl px-4">
