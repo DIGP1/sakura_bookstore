@@ -2,7 +2,7 @@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import type { SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { BookOpen, ChevronDown, House, LogIn, LogOut, Search, ShoppingCart, Tag, LayoutGrid, UserRound, UserRoundPlus, X } from 'lucide-vue-next';
+import { BookOpen, ChevronDown, House, LogIn, LogOut, Search, ShoppingCart, AlignJustify, UserRoundCheck, UserRound, UserRoundPlus, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 
 const page = usePage<SharedData>();
@@ -50,7 +50,7 @@ function buscar() {
                     <DropdownMenu>
                         <DropdownMenuTrigger>
                             <button class="flex shrink-0 items-center gap-2 whitespace-nowrap transition-opacity hover:opacity-75">
-                                <LayoutGrid class="h-5 w-5" />
+                                <AlignJustify class="h-5 w-5" />
                                 <span>Categorías</span>
                                 <ChevronDown class="h-3.5 w-3.5" />
                             </button>
@@ -127,13 +127,14 @@ function buscar() {
                         </DropdownMenu>
                     </template>
                     <template v-else>
-                        <Link :href="route('login')" class="transition-opacity hover:opacity-75" aria-label="Iniciar sesión">
-                            <LogIn class="h-5 w-5" />
+                        <Link :href="route('login')" class="hidden items-center gap-1 text-sm font-semibold transition-opacity hover:opacity-75 sm:flex" aria-label="Iniciar sesión">
+                            <UserRoundCheck class="h-5 w-5" />
+                            Iniciar sesión
                         </Link>
-                        <Link :href="route('register')" class="hidden items-center gap-1 text-sm font-semibold transition-opacity hover:opacity-75 sm:flex">
+                        <!-- <Link :href="route('register')" class="hidden items-center gap-1 text-sm font-semibold transition-opacity hover:opacity-75 sm:flex">
                             <UserRoundPlus class="h-5 w-5" />
                             Crear cuenta
-                        </Link>
+                        </Link> -->
                     </template>
                 </div>
             </nav>
