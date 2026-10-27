@@ -8,6 +8,7 @@ import type { BreadcrumbItem } from '@/types';
 import type { Opcion, Paginado } from '@/types/tienda';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { reactive } from 'vue';
+import { Eye } from 'lucide-vue-next';
 
 interface ClienteFila {
     id_cliente: number;
@@ -80,6 +81,7 @@ function filtrar() {
                             <th class="px-3 py-2 text-right">Compras</th>
                             <th class="px-3 py-2 text-right">Gastado</th>
                             <th class="px-3 py-2">Última compra</th>
+                            <th class="px-3 py-2">Ver detalles</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y">
@@ -95,6 +97,13 @@ function filtrar() {
                             <td class="px-3 py-2 text-right">{{ c.compras }}</td>
                             <td class="px-3 py-2 text-right">{{ dinero(c.gastado) }}</td>
                             <td class="px-3 py-2">{{ c.ultima_compra ?? 'Nunca' }}</td>
+                            <td class="px-3 py-2">
+                                <Button as-child variant="outline" size="sm" title="Ver detalles">
+                                    <Link :href="route('admin.clientes.show', c.id_cliente)">
+                                        <Eye class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </td>
                         </tr>
                         <tr v-if="!clientes.data.length">
                             <td colspan="6" class="px-3 py-8 text-center text-muted-foreground">No hay clientes con esos filtros.</td>

@@ -10,7 +10,8 @@ import type { Paginado } from '@/types/tienda';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Store, Truck } from 'lucide-vue-next';
 import { reactive } from 'vue';
-
+import { Eye } from 'lucide-vue-next';
+        
 interface VentaFila {
     id_venta: number;
     numero: string;
@@ -103,6 +104,7 @@ function limpiar() {
                             <th class="px-3 py-2">Entrega</th>
                             <th class="px-3 py-2 text-right">Total</th>
                             <th class="px-3 py-2">Estado</th>
+                            <th class="px-3 py-2">Ver detalles</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y">
@@ -123,6 +125,13 @@ function limpiar() {
                             </td>
                             <td class="px-3 py-2 text-right">{{ dinero(venta.total) }}</td>
                             <td class="px-3 py-2"><EstadoPedido :estado="venta.estado" /></td>
+                            <td class="px-3 py-2">
+                                <Button as-child variant="outline" size="sm" title="Ver detalles">
+                                    <Link :href="route('admin.ventas.show', venta.id_venta)">
+                                        <Eye class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </td>
                         </tr>
                         <tr v-if="!ventas.data.length">
                             <td colspan="7" class="px-3 py-8 text-center text-muted-foreground">No hay ventas con esos filtros.</td>

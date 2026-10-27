@@ -5,7 +5,7 @@ import TiendaLayout from '@/layouts/TiendaLayout.vue';
 import { dinero } from '@/lib/tienda';
 import type { Paginado } from '@/types/tienda';
 import { Head, Link } from '@inertiajs/vue3';
-import { Store, Truck } from 'lucide-vue-next';
+import { Store, Truck, Eye } from 'lucide-vue-next';
 
 interface Pedido {
     id_venta: number;
@@ -58,6 +58,11 @@ defineProps<{ pedidos: Paginado<Pedido> }>();
                         <EstadoPedido :estado="pedido.estado" />
                         <p class="font-semibold">{{ dinero(pedido.total) }}</p>
                     </div>
+                    <Button as-child variant="outline" size="sm" title="Ver detalles">
+                        <Link :href="route('cliente.pedidos.show', pedido.id_venta)" >
+                            <Eye class="h-4 w-4"/>
+                        </Link>
+                    </Button>
                 </li>
             </ul>
 
