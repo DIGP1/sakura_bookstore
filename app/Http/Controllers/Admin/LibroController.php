@@ -8,6 +8,7 @@ use App\Models\Autor;
 use App\Models\Categoria;
 use App\Models\Editorial;
 use App\Models\Producto;
+use App\Services\SincronizarNeo4jService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -15,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class LibroController extends Controller
 {
@@ -87,9 +89,28 @@ class LibroController extends Controller
         ]);
     }
 
-    public function store(LibroRequest $request): RedirectResponse
+    public function store(LibroRequest $request, SincronizarNeo4jService $neo4j): RedirectResponse
     {
         $datos = $request->validated();
+        $productoId = null;
+        $neo4jSynced = false;
+
+        try {
+            DB::transaction(function () use ($datos, $neo4j, &$productoId, &$neo4jSynced): void {
+                // El stock arranca en 0: solo sube con compras recibidas o ajustes.
+                $producto = Producto::create([...$this->campos($datos), 'stock' => 0, 'costo_promedio' => 0]);
+                $productoId = (int) $producto->id_producto;
+                $this->sincronizar($producto, $datos);
+                $neo4j->producto($producto->fresh());
+                $neo4jSynced = true;
+            });
+        } catch (Throwable $exception) {
+            if ($neo4jSynced && $productoId !== null) {
+                try {
+                    $neo4j->eliminarProducto($productoId);
+                } catch (Throwable $compensationException) {
+                    report($compensationException);
+                }
         $portada = $request->file('imagen');
         $rutaPortada = null;
 
@@ -140,9 +161,37 @@ class LibroController extends Controller
         ]);
     }
 
-    public function update(LibroRequest $request, Producto $producto): RedirectResponse
-    {
+    public function update(
+        LibroRequest $request,
+        Producto $producto,
+        SincronizarNeo4jService $neo4j,
+    ): RedirectResponse {
         $datos = $request->validated();
+        $productoAnterior = $producto->load(['editorial', 'autores', 'categorias'])->replicate();
+        $productoAnterior->id_producto = $producto->id_producto;
+        $productoAnterior->setRelation('editorial', $producto->editorial);
+        $productoAnterior->setRelation('autores', $producto->autores);
+        $productoAnterior->setRelation('categorias', $producto->categorias);
+        $neo4jSynced = false;
+
+        try {
+            DB::transaction(function () use ($producto, $datos, $neo4j, &$neo4jSynced): void {
+                $producto->update($this->campos($datos));
+                $this->sincronizar($producto, $datos);
+                $neo4j->producto($producto->fresh());
+                $neo4jSynced = true;
+            });
+        } catch (Throwable $exception) {
+            if ($neo4jSynced) {
+                try {
+                    $neo4j->producto($productoAnterior);
+                } catch (Throwable $compensationException) {
+                    report($compensationException);
+                }
+            }
+
+            throw $exception;
+        }
         $portada = $request->file('imagen');
         $rutaPortada = "portadas/{$producto->id_producto}.jpg";
 
@@ -161,7 +210,7 @@ class LibroController extends Controller
     /**
      * Solo se elimina un libro sin historial; si ya se vendió o compró, se perdería el kardex.
      */
-    public function destroy(Producto $producto): RedirectResponse
+    public function destroy(Producto $producto, SincronizarNeo4jService $neo4j): RedirectResponse
     {
         $tieneHistorial = $producto->detallesVenta()->exists()
             || DB::table('tbdetalle_compras')->where('id_producto', $producto->id_producto)->exists()
@@ -171,10 +220,27 @@ class LibroController extends Controller
             return back()->with('error', "No se puede eliminar \"{$producto->nombre}\" porque ya tiene ventas, compras o movimientos de inventario.");
         }
 
-        DB::transaction(function () use ($producto): void {
-            DB::table('tboferta_producto')->where('id_producto', $producto->id_producto)->delete();
-            $producto->delete();
-        });
+        $productoAnterior = $producto->load(['editorial', 'autores', 'categorias']);
+        $neo4jSynced = false;
+
+        try {
+            DB::transaction(function () use ($producto, $neo4j, &$neo4jSynced): void {
+                DB::table('tboferta_producto')->where('id_producto', $producto->id_producto)->delete();
+                $producto->delete();
+                $neo4j->eliminarProducto((int) $producto->id_producto);
+                $neo4jSynced = true;
+            });
+        } catch (Throwable $exception) {
+            if ($neo4jSynced) {
+                try {
+                    $neo4j->producto($productoAnterior);
+                } catch (Throwable $compensationException) {
+                    report($compensationException);
+                }
+            }
+
+            throw $exception;
+        }
 
         return to_route('admin.libros.index')->with('exito', "Libro \"{$producto->nombre}\" eliminado.");
     }
