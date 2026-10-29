@@ -43,7 +43,7 @@ function quitar(linea: LineaCarrito) {
             <ul class="divide-y rounded-lg border">
                 <li v-for="linea in resumen.lineas" :key="linea.id_producto" class="flex gap-4 p-4">
                     <Link :href="route('catalogo.show', linea.id_producto)" class="w-16 shrink-0">
-                        <LibroPortada :titulo="linea.nombre" />
+                        <LibroPortada :titulo="linea.nombre" :autores="linea.autores" :src="route('catalogo.portada', linea.id_producto)" />
                     </Link>
 
                     <div class="flex flex-1 flex-col gap-2">

@@ -1,21 +1,21 @@
 <?php
 
 use App\Http\Controllers\Admin\CatalogosController;
+use App\Http\Controllers\Admin\ClientesController;
 use App\Http\Controllers\Admin\ComprasController;
+use App\Http\Controllers\Admin\DevolucionesController;
+use App\Http\Controllers\Admin\EnviosController;
+use App\Http\Controllers\Admin\InventarioController;
 use App\Http\Controllers\Admin\LibroController;
+use App\Http\Controllers\Admin\OfertasController;
+use App\Http\Controllers\Admin\VentasController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\CarritoController;
 use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\InicioController;
 use App\Http\Controllers\UbicacionController;
-use App\Http\Controllers\Admin\InventarioController;
-use App\Http\Controllers\Admin\VentasController;
 use App\Http\Controllers\VentaController;
-use App\Http\Controllers\Admin\EnviosController;
-use App\Http\Controllers\Admin\DevolucionesController;
-use App\Http\Controllers\Admin\OfertasController;
-use App\Http\Controllers\Admin\ClientesController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', InicioController::class)->name('home');
 Route::get('catalogo', [CatalogoController::class, 'index'])->name('catalogo.index');
+Route::get('catalogo/{producto}/portada', [CatalogoController::class, 'portada'])->name('catalogo.portada');
 Route::get('catalogo/{producto}', [CatalogoController::class, 'show'])->name('catalogo.show');
 
 Route::get('ubicaciones/departamentos/{departamento}/municipios', [UbicacionController::class, 'municipios'])
@@ -82,12 +83,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
 
     // Libros
     Route::resource('libros', LibroController::class)->except('show')->parameters(['libros' => 'producto']);
-    
-      // Ofertas
+
+    // Ofertas
     Route::resource('ofertas', OfertasController::class)->except('show');
     Route::post('ofertas/{oferta}/estado', [OfertasController::class, 'alternar'])->whereNumber('oferta')->name('ofertas.toggle');
 
-    // Autores, editoriales, categorías y proveedores 
+    // Autores, editoriales, categorías y proveedores
     foreach (CatalogosController::TIPOS as $tipo) {
         Route::get($tipo, [CatalogosController::class, 'index'])->defaults('tipo', $tipo)->name("{$tipo}.index");
         Route::post($tipo, [CatalogosController::class, 'store'])->defaults('tipo', $tipo)->name("{$tipo}.store");
@@ -103,33 +104,33 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::post('compras/{compra}/recibir', [ComprasController::class, 'recibir'])->whereNumber('compra')->name('compras.receive');
     Route::post('compras/{compra}/anular', [ComprasController::class, 'anular'])->whereNumber('compra')->name('compras.cancel');
 
-    //Inventario
+    // Inventario
     Route::get('inventario', [InventarioController::class, 'index'])->name('inventario.index');
     Route::get('inventario/{producto}', [InventarioController::class, 'show'])->whereNumber('producto')->name('inventario.show');
     Route::post('inventario/{producto}/ajustes', [InventarioController::class, 'ajustar'])->whereNumber('producto')->name('inventario.ajustar');
-    
-    // Ventas y devoluciones 
+
+    // Ventas y devoluciones
     Route::post('ventas', [VentaController::class, 'store'])->name('ventas.store');
     Route::get('ventas', [VentasController::class, 'index'])->name('ventas.index');
     Route::get('ventas/{venta}', [VentasController::class, 'show'])->whereNumber('venta')->name('ventas.show');
     Route::post('ventas/{venta}/anular', [VentasController::class, 'anular'])->whereNumber('venta')->name('ventas.cancel');
-    
+
     // Devoluciones
     Route::get('devoluciones', [DevolucionesController::class, 'index'])->name('devoluciones.index');
     Route::get('devoluciones/{devolucion}', [DevolucionesController::class, 'show'])->whereNumber('devolucion')->name('devoluciones.show');
     Route::post('devoluciones/{devolucion}/aprobar', [DevolucionesController::class, 'aprobar'])->whereNumber('devolucion')->name('devoluciones.approve');
     Route::post('devoluciones/{devolucion}/rechazar', [DevolucionesController::class, 'rechazar'])->whereNumber('devolucion')->name('devoluciones.reject');
 
-      // Envíos
+    // Envíos
     Route::get('envios', [EnviosController::class, 'index'])->name('envios.index');
     Route::get('envios/{envio}', [EnviosController::class, 'show'])->whereNumber('envio')->name('envios.show');
     Route::post('envios/{envio}/estado', [EnviosController::class, 'cambiarEstado'])->whereNumber('envio')->name('envios.estado');
 
-      // Clientes
+    // Clientes
     Route::get('clientes', [ClientesController::class, 'index'])->name('clientes.index');
     Route::get('clientes/{cliente}', [ClientesController::class, 'show'])->whereNumber('cliente')->name('clientes.show');
-    
-    });
+
+});
 
 /*
 |--------------------------------------------------------------------------

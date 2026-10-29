@@ -117,7 +117,12 @@ function limpiar() {
                 </div>
 
                 <div v-if="productos.data.length" class="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
-                    <LibroCard v-for="libro in productos.data" :key="libro.id_producto" :libro="libro" />
+                    <LibroCard
+                        v-for="(libro, indice) in productos.data"
+                        :key="libro.id_producto"
+                        :libro="libro"
+                        :cargar-inmediatamente="indice < 4"
+                    />
                 </div>
                 <p v-else class="rounded-lg border p-8 text-center text-muted-foreground">No encontramos libros con esos filtros.</p>
 

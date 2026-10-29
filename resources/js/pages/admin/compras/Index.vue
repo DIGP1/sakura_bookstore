@@ -8,7 +8,7 @@ import { claseSelect, dinero } from '@/lib/tienda';
 import type { BreadcrumbItem } from '@/types';
 import type { Opcion, Paginado } from '@/types/tienda';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Plus } from 'lucide-vue-next';
+import { Plus, Eye } from 'lucide-vue-next';
 import { reactive } from 'vue';
 
 interface Compra {
@@ -81,6 +81,7 @@ function filtrar() {
                             <th class="px-3 py-2 text-right">Unidades</th>
                             <th class="px-3 py-2 text-right">Total</th>
                             <th class="px-3 py-2">Estado</th>
+                            <th class="px-3 py-2">  Ver detalles</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y">
@@ -94,6 +95,13 @@ function filtrar() {
                             <td class="px-3 py-2 text-right">{{ compra.unidades }}</td>
                             <td class="px-3 py-2 text-right">{{ dinero(compra.total) }}</td>
                             <td class="px-3 py-2"><EstadoPedido :estado="compra.estado" /></td>
+                            <td class="px-3 py-2">
+                                <Button as-child variant="outline" size="sm" title="Ver detalles">
+                                    <Link :href="route('admin.compras.show', compra.id_compra)">
+                                        <Eye class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </td>
                         </tr>
                         <tr v-if="!compras.data.length">
                             <td colspan="7" class="px-3 py-8 text-center text-muted-foreground">No hay compras con esos filtros.</td>

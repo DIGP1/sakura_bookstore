@@ -21,6 +21,7 @@ export interface SharedData {
     quote: { message: string; author: string };
     auth: Auth;
     carrito: { cantidad: number };
+    categorias: { id: number; nombre: string }[];
     flash: { exito: string | null; error: string | null };
     ziggy: {
         location: string;

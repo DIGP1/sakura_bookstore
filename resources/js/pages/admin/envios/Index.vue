@@ -9,7 +9,7 @@ import type { BreadcrumbItem } from '@/types';
 import type { Opcion, Paginado } from '@/types/tienda';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { reactive } from 'vue';
-
+import { Eye } from 'lucide-vue-next';
 interface EnvioFila {
     id_envio: number;
     id_venta: number;
@@ -111,6 +111,7 @@ function verEstado(estado: string) {
                             <th class="px-3 py-2">Proveedor</th>
                             <th class="px-3 py-2">Estimado</th>
                             <th class="px-3 py-2">Estado</th>
+                            <th class="px-3 py-2">Ver detalles</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y">
@@ -126,6 +127,13 @@ function verEstado(estado: string) {
                                 {{ envio.fecha_estimada }}<span v-if="envio.atrasado"> · atrasado</span>
                             </td>
                             <td class="px-3 py-2"><EstadoPedido :estado="envio.estado" /></td>
+                            <td class="px-3 py-2">
+                                <Button as-child variant="outline" size="sm" title="Ver detalles">
+                                    <Link :href="route('admin.envios.show', envio.id_envio)">
+                                        <Eye class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </td>
                         </tr>
                         <tr v-if="!envios.data.length">
                             <td colspan="7" class="px-3 py-8 text-center text-muted-foreground">No hay envíos con esos filtros.</td>

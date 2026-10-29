@@ -8,6 +8,7 @@ import type { BreadcrumbItem } from '@/types';
 import type { Paginado } from '@/types/tienda';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { reactive } from 'vue';
+import { Eye } from 'lucide-vue-next';
 
 interface LibroInventario {
     id_producto: number;
@@ -85,6 +86,7 @@ function claseStock(libro: LibroInventario) {
                             <th class="px-3 py-2 text-right">Costo prom.</th>
                             <th class="px-3 py-2 text-right">Valor</th>
                             <th class="px-3 py-2">Último movimiento</th>
+                            <th class="px-3 py-2">Ver detalles</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y">
@@ -98,6 +100,13 @@ function claseStock(libro: LibroInventario) {
                             <td class="px-3 py-2 text-right">{{ dinero(libro.costo_promedio) }}</td>
                             <td class="px-3 py-2 text-right">{{ dinero(libro.valor) }}</td>
                             <td class="px-3 py-2 text-muted-foreground">{{ libro.ultimo_movimiento ?? 'Sin movimientos' }}</td>
+                            <td class="px-3 py-2">
+                                <Button as-child variant="outline" size="sm" title="Ver detalles">
+                                    <Link :href="route('admin.inventario.show', libro.id_producto)">
+                                        <Eye class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </td>
                         </tr>
                         <tr v-if="!libros.data.length">
                             <td colspan="6" class="px-3 py-8 text-center text-muted-foreground">No hay libros con esos filtros.</td>

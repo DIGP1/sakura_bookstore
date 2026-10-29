@@ -39,10 +39,10 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->alias(ClientInterface::class, 'neo4j');
 
-        // Una sola instancia por petición: las ofertas se consultan una vez por página (Angel).
+        // Una sola instancia por petición: las ofertas se consultan una vez por página.
         $this->app->scoped(OfertaService::class);
 
-        // Booleanos compatibles con EMULATE_PREPARES (Angel, ver App\Database\PostgresConnection).
+        // Booleanos compatibles con EMULATE_PREPARES (ver App\Database\PostgresConnection).
         Connection::resolverFor('pgsql', fn ($pdo, $database, $prefix, $config) => new PostgresConnection($pdo, $database, $prefix, $config));
     }
 

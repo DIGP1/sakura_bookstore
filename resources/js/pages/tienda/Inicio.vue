@@ -25,9 +25,9 @@ defineProps<{
     <Head title="Inicio" />
 
     <TiendaLayout>
-        <section class="rounded-xl bg-gradient-to-br from-pink-100 to-rose-50 px-6 py-10 dark:from-pink-950 dark:to-background">
+        <section class="rounded-xl bg-red-100 px-6 py-10 ">
             <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Libros para cada lector</h1>
-            <p class="mt-3 max-w-xl text-muted-foreground">Literatura salvadoreña, clásicos, novela, textos escolares y más.</p>
+            <p class="mt-3 max-w-xl text-gray-700">Literatura salvadoreña, clásicos, novela, textos escolares y más.</p>
             <Button as-child class="mt-6">
                 <Link :href="route('catalogo.index')">Ver catálogo</Link>
             </Button>
@@ -36,7 +36,7 @@ defineProps<{
         <section v-if="ofertas.length" class="mt-10">
             <h2 class="mb-4 text-xl font-semibold">Ofertas vigentes</h2>
             <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <div v-for="oferta in ofertas" :key="oferta.id" class="flex gap-3 rounded-lg border p-4">
+                <div v-for="oferta in ofertas" :key="oferta.id" class="flex gap-3 rounded-lg border-2 p-4 ">
                     <Tag class="mt-0.5 h-5 w-5 shrink-0 text-pink-600" />
                     <div>
                         <p class="font-medium">{{ oferta.nombre }}</p>
@@ -50,14 +50,24 @@ defineProps<{
         <section v-if="enOferta.length" class="mt-10">
             <h2 class="mb-4 text-xl font-semibold">Libros en oferta</h2>
             <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                <LibroCard v-for="libro in enOferta" :key="libro.id_producto" :libro="libro" />
+                <LibroCard
+                    v-for="(libro, indice) in enOferta"
+                    :key="libro.id_producto"
+                    :libro="libro"
+                    :cargar-inmediatamente="indice < 4"
+                />
             </div>
         </section>
 
         <section class="mt-10">
             <h2 class="mb-4 text-xl font-semibold">Destacados</h2>
             <div v-if="destacados.length" class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                <LibroCard v-for="libro in destacados" :key="libro.id_producto" :libro="libro" />
+                <LibroCard
+                    v-for="(libro, indice) in destacados"
+                    :key="libro.id_producto"
+                    :libro="libro"
+                    :cargar-inmediatamente="indice < 4"
+                />
             </div>
             <p v-else class="text-sm text-muted-foreground">Todavía no hay libros para mostrar.</p>
         </section>
