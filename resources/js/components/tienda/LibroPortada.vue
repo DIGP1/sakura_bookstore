@@ -1,8 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
-// Portada provisional generada con el título (las fotos reales se agregan después).
-const props = defineProps<{ titulo: string; autores?: string; grande?: boolean }>();
+const props = defineProps<{
+    titulo: string;
+    autores?: string;
+    grande?: boolean;
+    cargarInmediatamente?: boolean;
+    src?: string;
+    alt?: string;
+}>();
 
 const colores = [
     ['#be185d', '#f9a8d4'],
@@ -15,20 +21,36 @@ const colores = [
     ['#334155', '#cbd5e1'],
 ];
 
+const imagenFallida = ref(false);
+
 const fondo = computed(() => {
     let hash = 0;
     for (const letra of props.titulo) hash = (hash * 31 + letra.charCodeAt(0)) >>> 0;
     const [oscuro, claro] = colores[hash % colores.length];
     return `linear-gradient(145deg, ${oscuro}, ${claro})`;
 });
+
+const mostrarImagen = computed(() => Boolean(props.src) && !imagenFallida.value);
 </script>
 
 <template>
     <div
-        class="flex aspect-[2/3] w-full flex-col justify-between overflow-hidden rounded-md p-3 text-white shadow-sm"
+        class="relative flex aspect-[2/3] w-full flex-col justify-between overflow-hidden rounded-md p-3 text-white shadow-sm"
         :style="{ background: fondo }"
     >
-        <p :class="['font-semibold leading-tight drop-shadow', grande ? 'line-clamp-5 text-xl' : 'line-clamp-4 text-sm']">{{ titulo }}</p>
-        <p v-if="autores" :class="['line-clamp-2 opacity-90 drop-shadow', grande ? 'text-sm' : 'text-xs']">{{ autores }}</p>
+        <img
+            v-if="mostrarImagen"
+            :src="src"
+            :alt="alt ?? `Portada de ${titulo}`"
+            class="absolute inset-0 h-full w-full object-cover transition-opacity duration-300"
+            :loading="cargarInmediatamente || grande ? 'eager' : 'lazy'"
+            :fetchpriority="cargarInmediatamente || grande ? 'high' : 'auto'"
+            decoding="async"
+            @error="imagenFallida = true"
+        />
+        <template v-else>
+            <p :class="['font-semibold leading-tight drop-shadow', grande ? 'line-clamp-5 text-xl' : 'line-clamp-4 text-sm']">{{ titulo }}</p>
+            <p v-if="autores" :class="['line-clamp-2 opacity-90 drop-shadow', grande ? 'text-sm' : 'text-xs']">{{ autores }}</p>
+        </template>
     </div>
 </template>

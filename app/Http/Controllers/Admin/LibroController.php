@@ -11,7 +11,9 @@ use App\Models\Producto;
 use App\Services\SincronizarNeo4jService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
@@ -35,9 +37,15 @@ class LibroController extends Controller
 
         if ($texto = trim($filtros['q'] ?? '')) {
             $patron = '%'.mb_strtolower($texto).'%';
-            $consulta->where(fn ($q) => $q
-                ->whereRaw('LOWER(nombre) LIKE ?', [$patron])
-                ->orWhere('isbn', 'like', '%'.preg_replace('/\D/', '', $texto).'%'));
+            $isbn = preg_replace('/\D/', '', $texto);
+
+            $consulta->where(function ($q) use ($patron, $isbn): void {
+                $q->whereRaw('LOWER(nombre) LIKE ?', [$patron]);
+
+                if ($isbn !== '') {
+                    $q->orWhere('isbn', 'like', "%{$isbn}%");
+                }
+            });
         }
 
         if (! empty($filtros['categoria'])) {
@@ -103,6 +111,23 @@ class LibroController extends Controller
                 } catch (Throwable $compensationException) {
                     report($compensationException);
                 }
+        $portada = $request->file('imagen');
+        $rutaPortada = null;
+
+        try {
+            DB::transaction(function () use ($datos, $portada, &$rutaPortada): void {
+                // El stock arranca en 0: solo sube con compras recibidas o ajustes.
+                $producto = Producto::create([...$this->campos($datos), 'stock' => 0, 'costo_promedio' => 0]);
+                $this->sincronizar($producto, $datos);
+
+                if ($portada instanceof UploadedFile) {
+                    $rutaPortada = "portadas/{$producto->id_producto}.jpg";
+                    $this->guardarPortada($portada, $rutaPortada);
+                }
+            });
+        } catch (\Throwable $exception) {
+            if ($rutaPortada !== null) {
+                Storage::disk('public')->delete($rutaPortada);
             }
 
             throw $exception;
@@ -167,6 +192,17 @@ class LibroController extends Controller
 
             throw $exception;
         }
+        $portada = $request->file('imagen');
+        $rutaPortada = "portadas/{$producto->id_producto}.jpg";
+
+        DB::transaction(function () use ($producto, $datos, $portada, $rutaPortada): void {
+            $producto->update($this->campos($datos));
+            $this->sincronizar($producto, $datos);
+
+            if ($portada instanceof UploadedFile) {
+                $this->guardarPortada($portada, $rutaPortada);
+            }
+        });
 
         return to_route('admin.libros.index')->with('exito', "Libro \"{$datos['nombre']}\" actualizado.");
     }
@@ -256,5 +292,12 @@ class LibroController extends Controller
         }
 
         $producto->categorias()->sync($datos['categorias']);
+    }
+
+    private function guardarPortada(UploadedFile $archivo, string $ruta): void
+    {
+        if (Storage::disk('public')->putFileAs('portadas', $archivo, basename($ruta)) === false) {
+            throw new \RuntimeException('No se pudo guardar la portada.');
+        }
     }
 }

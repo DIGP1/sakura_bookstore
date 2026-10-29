@@ -9,6 +9,7 @@ import type { BreadcrumbItem } from '@/types';
 import type { Paginado } from '@/types/tienda';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import { Eye } from 'lucide-vue-next';
 
 interface DevolucionFila {
     id_devolucion: number;
@@ -85,6 +86,7 @@ function ir(estado: string, q = busqueda.value) {
                             <th class="px-3 py-2 text-right">Libros</th>
                             <th class="px-3 py-2 text-right">Reembolso</th>
                             <th class="px-3 py-2">Estado</th>
+                            <th class="px-3 py-2">Ver detalles</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y">
@@ -99,6 +101,13 @@ function ir(estado: string, q = busqueda.value) {
                             <td class="px-3 py-2 text-right">{{ d.libros }}</td>
                             <td class="px-3 py-2 text-right">{{ dinero(d.monto) }}</td>
                             <td class="px-3 py-2"><EstadoPedido :estado="d.estado" /></td>
+                            <td class="px-3 py-2">
+                                <Button as-child variant="outline" size="sm" title="Ver detalles">
+                                    <Link :href="route('admin.devoluciones.show', d.id_devolucion)">
+                                        <Eye class="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            </td>
                         </tr>
                         <tr v-if="!devoluciones.data.length">
                             <td colspan="8" class="px-3 py-8 text-center text-muted-foreground">No hay devoluciones aquí.</td>

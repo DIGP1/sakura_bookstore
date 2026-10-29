@@ -2,7 +2,7 @@
 import { cn } from '@/lib/utils';
 import { useEventListener, useMediaQuery, useVModel } from '@vueuse/core';
 import { TooltipProvider } from 'radix-vue';
-import { computed, ref, type HTMLAttributes, type Ref } from 'vue';
+import { computed, onMounted, ref, watch, type HTMLAttributes, type Ref } from 'vue';
 import {
     SIDEBAR_COOKIE_MAX_AGE,
     SIDEBAR_COOKIE_NAME,
@@ -30,6 +30,16 @@ const emits = defineEmits<{
 
 const isMobile = useMediaQuery('(max-width: 768px)');
 const openMobile = ref(false);
+
+watch(isMobile, (mobile) => {
+    if (mobile) {
+        openMobile.value = false;
+    }
+});
+
+onMounted(() => {
+    openMobile.value = false;
+});
 
 const open = useVModel(props, 'open', emits, {
     defaultValue: props.defaultOpen ?? false,

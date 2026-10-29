@@ -31,7 +31,12 @@ function agregar() {
 
         <div class="mt-4 grid gap-8 md:grid-cols-[280px_1fr]">
             <div class="mx-auto w-full max-w-[280px]">
-                <LibroPortada :titulo="producto.nombre" :autores="producto.autores" grande />
+                <LibroPortada
+                    :titulo="producto.nombre"
+                    :autores="producto.autores"
+                    :src="`/storage/portadas/${producto.id_producto}.jpg`"
+                    grande
+                />
             </div>
 
             <div class="flex flex-col gap-4">
@@ -66,12 +71,30 @@ function agregar() {
                 <p v-else class="text-sm text-muted-foreground">Este libro está agotado por ahora.</p>
 
                 <dl class="mt-2 grid grid-cols-2 gap-x-6 gap-y-2 rounded-lg border p-4 text-sm sm:grid-cols-3">
-                    <div><dt class="text-muted-foreground">ISBN</dt><dd>{{ producto.isbn }}</dd></div>
-                    <div><dt class="text-muted-foreground">Editorial</dt><dd>{{ producto.editorial ?? '—' }}</dd></div>
-                    <div><dt class="text-muted-foreground">Año</dt><dd>{{ producto.anio_publicacion ?? '—' }}</dd></div>
-                    <div><dt class="text-muted-foreground">Idioma</dt><dd>{{ producto.idioma ?? '—' }}</dd></div>
-                    <div><dt class="text-muted-foreground">Formato</dt><dd>{{ producto.formato ?? '—' }}</dd></div>
-                    <div><dt class="text-muted-foreground">Páginas</dt><dd>{{ producto.num_paginas ?? '—' }}</dd></div>
+                    <div>
+                        <dt class="text-muted-foreground">ISBN</dt>
+                        <dd>{{ producto.isbn }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-muted-foreground">Editorial</dt>
+                        <dd>{{ producto.editorial ?? '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-muted-foreground">Año</dt>
+                        <dd>{{ producto.anio_publicacion ?? '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-muted-foreground">Idioma</dt>
+                        <dd>{{ producto.idioma ?? '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-muted-foreground">Formato</dt>
+                        <dd>{{ producto.formato ?? '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-muted-foreground">Páginas</dt>
+                        <dd>{{ producto.num_paginas ?? '—' }}</dd>
+                    </div>
                 </dl>
             </div>
         </div>
@@ -79,14 +102,14 @@ function agregar() {
         <section v-if="mismoAutor.length" class="mt-12">
             <h2 class="mb-4 text-xl font-semibold">Más del mismo autor</h2>
             <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                <LibroCard v-for="libro in mismoAutor" :key="libro.id_producto" :libro="libro" />
+                <LibroCard v-for="(libro, indice) in mismoAutor" :key="libro.id_producto" :libro="libro" :cargar-inmediatamente="indice < 4" />
             </div>
         </section>
 
         <section v-if="mismaCategoria.length" class="mt-12">
             <h2 class="mb-4 text-xl font-semibold">De la misma categoría</h2>
             <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                <LibroCard v-for="libro in mismaCategoria" :key="libro.id_producto" :libro="libro" />
+                <LibroCard v-for="(libro, indice) in mismaCategoria" :key="libro.id_producto" :libro="libro" :cargar-inmediatamente="indice < 4" />
             </div>
         </section>
     </TiendaLayout>

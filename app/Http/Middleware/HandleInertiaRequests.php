@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Categoria;
 use App\Services\CarritoService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
@@ -49,6 +50,15 @@ class HandleInertiaRequests extends Middleware
             'carrito' => fn () => [
                 'cantidad' => app(CarritoService::class)->cantidadLibros(),
             ],
+            'categorias' => fn () => Categoria::query()
+                ->select(['id_categoria', 'nombre'])
+                ->orderBy('nombre')
+                ->get()
+                ->map(fn (Categoria $categoria) => [
+                    'id' => $categoria->id_categoria,
+                    'nombre' => $categoria->nombre,
+                ])
+                ->values(),
             'flash' => fn () => [
                 'exito' => $request->session()->get('exito'),
                 'error' => $request->session()->get('error'),

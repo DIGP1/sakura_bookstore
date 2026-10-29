@@ -8,7 +8,7 @@ import { Link, router } from '@inertiajs/vue3';
 import { ShoppingCart } from 'lucide-vue-next';
 import { ref } from 'vue';
 
-const props = defineProps<{ libro: LibroTarjeta }>();
+const props = defineProps<{ libro: LibroTarjeta; cargarInmediatamente?: boolean }>();
 
 const agregando = ref(false);
 
@@ -28,7 +28,12 @@ function agregar() {
 <template>
     <div class="flex flex-col gap-2 rounded-lg border p-3">
         <Link :href="route('catalogo.show', libro.id_producto)" class="block">
-            <LibroPortada :titulo="libro.nombre" :autores="libro.autores" />
+            <LibroPortada
+                :titulo="libro.nombre"
+                :autores="libro.autores"
+                :src="`/storage/portadas/${libro.id_producto}.jpg`"
+                :cargar-inmediatamente="cargarInmediatamente"
+            />
         </Link>
 
         <div class="flex flex-1 flex-col gap-1">

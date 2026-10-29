@@ -7,8 +7,11 @@ use App\Models\Editorial;
 use App\Models\Producto;
 use App\Services\CatalogoService;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class CatalogoController extends Controller
 {
@@ -88,6 +91,21 @@ class CatalogoController extends Controller
                 ->map(fn ($c) => ['id' => $c->id_categoria, 'nombre' => $c->nombre]),
             'editoriales' => Editorial::orderBy('nombre')->get()
                 ->map(fn ($e) => ['id' => $e->id_editorial, 'nombre' => $e->nombre]),
+        ]);
+    }
+
+    public function portada(Producto $producto): BinaryFileResponse
+    {
+        $rutaRelativa = "portadas/{$producto->id_producto}.jpg";
+        $rutaPortada = Storage::disk('public')->path($rutaRelativa);
+
+        abort_unless(
+            Storage::disk('public')->exists($rutaRelativa),
+            HttpResponse::HTTP_NOT_FOUND
+        );
+
+        return response()->file($rutaPortada, [
+            'Cache-Control' => 'public, max-age=86400, immutable',
         ]);
     }
 
