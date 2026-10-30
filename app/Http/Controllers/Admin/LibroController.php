@@ -81,6 +81,9 @@ class LibroController extends Controller
         ]);
     }
 
+
+    
+
     public function create(): Response
     {
         return Inertia::render('admin/libros/Form', [
@@ -89,45 +92,43 @@ class LibroController extends Controller
         ]);
     }
 
-    public function store(LibroRequest $request, SincronizarNeo4jService $neo4j): RedirectResponse
+       public function store(LibroRequest $request, SincronizarNeo4jService $neo4j): RedirectResponse
     {
         $datos = $request->validated();
+        $portada = $request->file('imagen');
+        $rutaPortada = null;
         $productoId = null;
         $neo4jSynced = false;
 
         try {
-            DB::transaction(function () use ($datos, $neo4j, &$productoId, &$neo4jSynced): void {
+            DB::transaction(function () use ($datos, $portada, $neo4j, &$rutaPortada, &$productoId, &$neo4jSynced): void {
                 // El stock arranca en 0: solo sube con compras recibidas o ajustes.
                 $producto = Producto::create([...$this->campos($datos), 'stock' => 0, 'costo_promedio' => 0]);
                 $productoId = (int) $producto->id_producto;
-                $this->sincronizar($producto, $datos);
-                $neo4j->producto($producto->fresh());
-                $neo4jSynced = true;
-            });
-        } catch (Throwable $exception) {
-            if ($neo4jSynced && $productoId !== null) {
-                try {
-                    $neo4j->eliminarProducto($productoId);
-                } catch (Throwable $compensationException) {
-                    report($compensationException);
-                }
-        $portada = $request->file('imagen');
-        $rutaPortada = null;
-
-        try {
-            DB::transaction(function () use ($datos, $portada, &$rutaPortada): void {
-                // El stock arranca en 0: solo sube con compras recibidas o ajustes.
-                $producto = Producto::create([...$this->campos($datos), 'stock' => 0, 'costo_promedio' => 0]);
                 $this->sincronizar($producto, $datos);
 
                 if ($portada instanceof UploadedFile) {
                     $rutaPortada = "portadas/{$producto->id_producto}.jpg";
                     $this->guardarPortada($portada, $rutaPortada);
                 }
+
+                // Neo4j al final: si algo de arriba falla, no se escribe nada en el grafo.
+                $neo4j->producto($producto->fresh());
+                $neo4jSynced = true;
             });
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
+            // Si falló, se borra la portada que se alcanzó a guardar...
             if ($rutaPortada !== null) {
                 Storage::disk('public')->delete($rutaPortada);
+            }
+
+            // ...y si el libro ya se había escrito en Neo4j, se elimina de ahí (compensación).
+            if ($neo4jSynced && $productoId !== null) {
+                try {
+                    $neo4j->eliminarProducto($productoId);
+                } catch (Throwable $compensationException) {
+                    report($compensationException);
+                }
             }
 
             throw $exception;
@@ -161,27 +162,36 @@ class LibroController extends Controller
         ]);
     }
 
-    public function update(
-        LibroRequest $request,
-        Producto $producto,
-        SincronizarNeo4jService $neo4j,
-    ): RedirectResponse {
-        $datos = $request->validated();
-        $productoAnterior = $producto->load(['editorial', 'autores', 'categorias'])->replicate();
-        $productoAnterior->id_producto = $producto->id_producto;
-        $productoAnterior->setRelation('editorial', $producto->editorial);
-        $productoAnterior->setRelation('autores', $producto->autores);
-        $productoAnterior->setRelation('categorias', $producto->categorias);
-        $neo4jSynced = false;
+        public function update(
+                LibroRequest $request,
+                Producto $producto,
+                SincronizarNeo4jService $neo4j,
+            ): RedirectResponse {
+                $datos = $request->validated();
+                $portada = $request->file('imagen');
+                $rutaPortada = "portadas/{$producto->id_producto}.jpg";
+                $productoAnterior = $producto->load(['editorial', 'autores', 'categorias'])->replicate();
+                $productoAnterior->id_producto = $producto->id_producto;
+                $productoAnterior->setRelation('editorial', $producto->editorial);
+                $productoAnterior->setRelation('autores', $producto->autores);
+                $productoAnterior->setRelation('categorias', $producto->categorias);
+                $neo4jSynced = false;
 
         try {
-            DB::transaction(function () use ($producto, $datos, $neo4j, &$neo4jSynced): void {
+            DB::transaction(function () use ($producto, $datos, $portada, $rutaPortada, $neo4j, &$neo4jSynced): void {
                 $producto->update($this->campos($datos));
                 $this->sincronizar($producto, $datos);
+
+                if ($portada instanceof UploadedFile) {
+                    $this->guardarPortada($portada, $rutaPortada);
+                }
+
+                // Neo4j al final: si algo de arriba falla, el grafo no se toca.
                 $neo4j->producto($producto->fresh());
                 $neo4jSynced = true;
             });
         } catch (Throwable $exception) {
+            // Si Neo4j ya se había actualizado, se le devuelven los datos anteriores (compensación).
             if ($neo4jSynced) {
                 try {
                     $neo4j->producto($productoAnterior);
@@ -192,17 +202,6 @@ class LibroController extends Controller
 
             throw $exception;
         }
-        $portada = $request->file('imagen');
-        $rutaPortada = "portadas/{$producto->id_producto}.jpg";
-
-        DB::transaction(function () use ($producto, $datos, $portada, $rutaPortada): void {
-            $producto->update($this->campos($datos));
-            $this->sincronizar($producto, $datos);
-
-            if ($portada instanceof UploadedFile) {
-                $this->guardarPortada($portada, $rutaPortada);
-            }
-        });
 
         return to_route('admin.libros.index')->with('exito', "Libro \"{$datos['nombre']}\" actualizado.");
     }

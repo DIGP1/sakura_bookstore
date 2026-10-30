@@ -8,6 +8,7 @@ use App\Models\EstadoDevolucion;
 use App\Services\InventarioService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use App\Services\SincronizarNeo4jService;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -133,18 +134,23 @@ class DevolucionesController extends Controller
         return back()->with('exito', "Devolución #{$devolucion->id_devolucion} aprobada. Los libros en buen estado regresaron al stock.");
     }
 
-    public function rechazar(Devolucion $devolucion): RedirectResponse
-    {
-        if ($devolucion->estado?->nombre !== 'SOLICITADA') {
+    public function rechazar(Devolucion $devolucion, SincronizarNeo4jService $neo4j):
+            RedirectResponse
+            {
+            if ($devolucion->estado?->nombre !== 'SOLICITADA') {
             return back()->with('error', 'Solo se pueden rechazar devoluciones por revisar.');
-        }
-
-        $devolucion->update([
-            'id_estado_devolucion' => EstadoDevolucion::query()->where('nombre', 'RECHAZADA')->value('id_estado_devolucion'),
-        ]);
-
-        return back()->with('exito', "Devolución #{$devolucion->id_devolucion} rechazada.");
-    }
+            }
+            // Se cambia el estado y se refleja en Neo4j en la misma transacción:
+            DB::transaction(function () use ($devolucion, $neo4j): void {
+            $devolucion->update([
+            'id_estado_devolucion' => EstadoDevolucion::query()->where('nombre', 'RECHAZADA')-
+            >value('id_estado_devolucion'),
+            ]);
+            $neo4j->devolucion($devolucion->fresh(['detalles.detalleVenta', 'estado', 'motivo',
+            'tipoReembolso']));
+            });
+            return back()->with('exito', "Devolución #{$devolucion->id_devolucion} rechazada.");
+            }
 
     private function formato(?string $nombre): ?string
     {
