@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { confirmar } from '@/composables/useConfirmar';
 import Paginacion from '@/components/admin/Paginacion.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,8 +44,8 @@ function filtrar() {
     router.get(route('admin.libros.index'), datos, { preserveState: true, preserveScroll: true });
 }
 
-function eliminar(libro: Libro) {
-    if (!confirm(`¿Eliminar "${libro.nombre}"? Esta acción no se puede deshacer.`)) return;
+async function eliminar(libro: Libro) {
+    if (!(await confirmar({ titulo: 'Eliminar libro', mensaje: `¿Eliminar "${libro.nombre}"? Esta acción no se puede deshacer.`, boton: 'Eliminar', peligro: true }))) return;
     router.delete(route('admin.libros.destroy', libro.id_producto), { preserveScroll: true });
 }
 

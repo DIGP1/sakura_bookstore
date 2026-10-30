@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { confirmar } from '@/composables/useConfirmar';
 import EstadoPedido from '@/components/tienda/EstadoPedido.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -45,8 +46,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const procesando = ref(false);
 
-function anular() {
-    if (!confirm(`¿Anular la venta #${props.venta.numero}? Los libros van a regresar al stock y no se puede deshacer.`)) return;
+async function anular() {
+    if (!(await confirmar({ titulo: 'Anular venta', mensaje: `¿Anular la venta #${props.venta.numero}? Los libros van a regresar al stock y no se puede deshacer.`, boton: 'Anular', peligro: true }))) return;
     router.post(route('admin.ventas.cancel', props.venta.id_venta), {}, {
         preserveScroll: true,
         onStart: () => (procesando.value = true),

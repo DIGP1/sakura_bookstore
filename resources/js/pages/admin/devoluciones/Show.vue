@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { confirmar } from '@/composables/useConfirmar';
 import EstadoPedido from '@/components/tienda/EstadoPedido.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -37,13 +38,13 @@ const form = useForm({
     reingresa: Object.fromEntries(props.devolucion.lineas.map((l) => [l.id_detalle_devolucion, l.reingresa_stock])) as Record<number, boolean>,
 });
 
-function aprobar() {
-    if (!confirm('¿Aprobar la devolución? Los libros marcados van a regresar al stock y no se puede deshacer.')) return;
+async function aprobar() {
+    if (!(await confirmar({ titulo: 'Aprobar devolución', mensaje: 'Los libros marcados van a regresar al stock y no se puede deshacer.', boton: 'Aprobar' }))) return;
     form.post(route('admin.devoluciones.approve', props.devolucion.id_devolucion), { preserveScroll: true });
 }
 
-function rechazar() {
-    if (!confirm('¿Rechazar la devolución?')) return;
+async function rechazar() {
+    if (!(await confirmar({ titulo: 'Rechazar devolución', mensaje: '¿Rechazar la devolución? El cliente no recibirá reembolso.', boton: 'Rechazar', peligro: true }))) return;
     router.post(route('admin.devoluciones.reject', props.devolucion.id_devolucion), {}, { preserveScroll: true });
 }
 </script>

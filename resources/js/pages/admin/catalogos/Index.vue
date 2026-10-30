@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { confirmar } from '@/composables/useConfirmar';
 import Paginacion from '@/components/admin/Paginacion.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -69,8 +70,8 @@ function guardar() {
     }
 }
 
-function eliminar(fila: Fila) {
-    if (!confirm(`¿Eliminar "${fila.nombre}"?`)) return;
+async function eliminar(fila: Fila) {
+    if (!(await confirmar({ titulo: 'Eliminar registro', mensaje: `¿Eliminar "${fila.nombre}"?`, boton: 'Eliminar', peligro: true }))) return;
     router.delete(route(`admin.${props.tipo}.destroy`, fila.id), { preserveScroll: true });
 }
 </script>

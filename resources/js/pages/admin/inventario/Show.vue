@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { confirmar } from '@/composables/useConfirmar';
 import Paginacion from '@/components/admin/Paginacion.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -58,9 +59,9 @@ const form = useForm({
     observacion: '',
 });
 
-function ajustar() {
+async function ajustar() {
     const verbo = form.tipo === 'entrada' ? 'sumar' : 'restar';
-    if (!confirm(`¿${verbo[0].toUpperCase() + verbo.slice(1)} ${form.cantidad} unidad(es) al stock? El ajuste no se puede borrar.`)) return;
+    if (!(await confirmar({ titulo: 'Ajuste de inventario', mensaje: `¿${verbo[0].toUpperCase() + verbo.slice(1)} ${form.cantidad} unidad(es) al stock? El ajuste no se puede borrar.`, boton: 'Ajustar' }))) return;
 
     form.post(route('admin.inventario.ajustar', props.libro.id_producto), {
         preserveScroll: true,

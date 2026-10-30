@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { confirmar } from '@/composables/useConfirmar';
 import EstadoPedido from '@/components/tienda/EstadoPedido.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -28,8 +29,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const procesando = ref(false);
 
-function recibir() {
-    if (!confirm('¿Confirmás que llegó toda la mercadería? Se va a sumar al stock y no se puede deshacer.')) return;
+async function recibir() {
+    if (!(await confirmar({ titulo: 'Recibir mercadería', mensaje: '¿Confirmás que llegó toda la mercadería? Se va a sumar al stock y no se puede deshacer.', boton: 'Recibir' }))) return;
     router.post(route('admin.compras.receive', props.compra.id_compra), {}, {
         preserveScroll: true,
         onStart: () => (procesando.value = true),
@@ -37,8 +38,8 @@ function recibir() {
     });
 }
 
-function anular() {
-    if (!confirm('¿Anular esta compra?')) return;
+async function anular() {
+    if (!(await confirmar({ titulo: 'Anular compra', mensaje: '¿Anular esta compra?', boton: 'Anular', peligro: true }))) return;
     router.post(route('admin.compras.cancel', props.compra.id_compra), {}, { preserveScroll: true });
 }
 </script>

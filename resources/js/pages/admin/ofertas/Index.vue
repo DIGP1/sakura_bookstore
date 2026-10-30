@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { confirmar } from '@/composables/useConfirmar';
 import Paginacion from '@/components/admin/Paginacion.vue';
 import EstadoPedido from '@/components/tienda/EstadoPedido.vue';
 import { Button } from '@/components/ui/button';
@@ -38,8 +39,8 @@ function alternar(oferta: OfertaFila) {
     router.post(route('admin.ofertas.toggle', oferta.id_oferta), {}, { preserveScroll: true });
 }
 
-function eliminar(oferta: OfertaFila) {
-    if (!confirm(`¿Eliminar la oferta "${oferta.nombre}"?`)) return;
+async function eliminar(oferta: OfertaFila) {
+    if (!(await confirmar({ titulo: 'Eliminar oferta', mensaje: `¿Eliminar la oferta "${oferta.nombre}"?`, boton: 'Eliminar', peligro: true }))) return;
     router.delete(route('admin.ofertas.destroy', oferta.id_oferta), { preserveScroll: true });
 }
 </script>

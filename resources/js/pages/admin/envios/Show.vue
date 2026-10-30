@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { confirmar } from '@/composables/useConfirmar';
 import InputError from '@/components/InputError.vue';
 import EstadoPedido from '@/components/tienda/EstadoPedido.vue';
 import { Button } from '@/components/ui/button';
@@ -56,8 +57,8 @@ const form = useForm({
     id_proveedor_envio: props.envio.id_proveedor_envio as number | '',
 });
 
-function cambiar(estado: string) {
-    if (!confirm(`¿Cambiar el envío a "${acciones[estado]?.texto.replace('Marcar ', '')}"?`)) return;
+async function cambiar(estado: string) {
+    if (!(await confirmar({ titulo: 'Actualizar envío', mensaje: `¿Cambiar el envío a "${acciones[estado]?.texto.replace('Marcar ', '')}"?`, boton: 'Cambiar' }))) return;
     form.estado = estado;
     form.post(route('admin.envios.estado', props.envio.id_envio), {
         preserveScroll: true,
