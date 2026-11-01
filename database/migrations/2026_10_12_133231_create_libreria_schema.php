@@ -62,7 +62,7 @@ return new class extends Migration
             $table->string('idioma', 30)->default('Español');
             $table->string('formato', 15)->default('RUSTICA');
             $table->unsignedInteger('num_paginas')->nullable();
-            $table->integer('stock')->default(0);
+            $table->unsignedInteger('stock')->default(0);
             $table->unsignedInteger('stock_minimo')->default(5);
             $table->decimal('precio_unitario', 10, 2);
             $table->decimal('costo_promedio', 10, 2)->default(0);
@@ -267,7 +267,7 @@ return new class extends Migration
             $table->timestamp('fecha')->useCurrent();
             $table->integer('cantidad');
             $table->decimal('costo_unitario', 10, 2);
-            $table->integer('stock_resultante');
+            $table->unsignedInteger('stock_resultante');
             $table->unsignedInteger('id_detalle_compra')->nullable();
             $table->unsignedInteger('id_detalle_venta')->nullable();
             $table->unsignedInteger('id_detalle_devolucion')->nullable();
